@@ -1,14 +1,17 @@
-import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import type { Metadata, Viewport } from 'next'
+import { Inter } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
-const _geist = Geist({ subsets: ["latin"] });
-const _geistMono = Geist_Mono({ subsets: ["latin"] });
+const inter = Inter({ 
+  subsets: ["latin"],
+  variable: "--font-inter"
+})
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
+  title: 'Schneider Smart Service Platform | AI-Powered Technician Dispatch',
+  description: 'Book trusted technicians for home, commercial, and industrial services with AI-powered realtime tracking and dispatching.',
+  keywords: ['technician booking', 'smart dispatch', 'home services', 'HVAC', 'plumbing', 'electrical', 'realtime tracking', 'AI dispatch'],
   generator: 'v0.app',
   icons: {
     icon: [
@@ -29,14 +32,20 @@ export const metadata: Metadata = {
   },
 }
 
+export const viewport: Viewport = {
+  themeColor: '#0a0f1a',
+  width: 'device-width',
+  initialScale: 1,
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
-      <body className="font-sans antialiased">
+    <html lang="en" className={`${inter.variable} bg-background`}>
+      <body className="min-h-screen font-sans antialiased">
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
