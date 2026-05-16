@@ -38,6 +38,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
+import { ThemeToggleCompact } from "@/components/theme-toggle"
 
 const steps = [
   { id: 1, title: "Service", icon: Wrench },
@@ -228,6 +229,7 @@ export default function BookingPage() {
                 Emergency Mode
               </div>
             )}
+            <ThemeToggleCompact />
             <Link href="/">
               <Button variant="ghost" size="sm">
                 <ArrowLeft className="mr-2 h-4 w-4" />

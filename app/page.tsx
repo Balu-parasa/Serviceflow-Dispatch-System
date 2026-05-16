@@ -22,6 +22,7 @@ import {
   TrendingUp,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 const fadeInUp = {
   initial: { opacity: 0, y: 20 },
@@ -84,6 +85,7 @@ function Navbar() {
           </div>
 
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             <Link href="/login">
               <Button variant="ghost" size="sm">
                 Sign In
