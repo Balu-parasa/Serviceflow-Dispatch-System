@@ -1,8 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import Link from "next/link"
+import { DayPicker } from "react-day-picker"
+import { format, addDays, isBefore, startOfToday } from "date-fns"
 import {
   Zap,
   ArrowLeft,
@@ -27,6 +29,10 @@ import {
   Building,
   Factory,
   ChevronRight,
+  ChevronLeft,
+  Sun,
+  Sunset,
+  Moon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -105,9 +111,9 @@ const propertyTypes = [
 ]
 
 const timeSlots = [
-  { id: "morning", time: "8:00 AM - 12:00 PM", label: "Morning" },
-  { id: "afternoon", time: "12:00 PM - 4:00 PM", label: "Afternoon" },
-  { id: "evening", time: "4:00 PM - 8:00 PM", label: "Evening" },
+  { id: "morning", time: "8:00 AM - 12:00 PM", label: "Morning", icon: Sun, slots: ["8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM"] },
+  { id: "afternoon", time: "12:00 PM - 5:00 PM", label: "Afternoon", icon: Sunset, slots: ["12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM"] },
+  { id: "evening", time: "5:00 PM - 8:00 PM", label: "Evening", icon: Moon, slots: ["5:00 PM", "6:00 PM", "7:00 PM"] },
 ]
 
 const technicians = [
@@ -147,8 +153,9 @@ interface BookingData {
   address: string
   city: string
   zipCode: string
-  date: string
+  date: Date | undefined
   timeSlot: string
+  specificTime: string
   isEmergency: boolean
   name: string
   email: string
@@ -166,8 +173,9 @@ export default function BookingPage() {
     address: "",
     city: "",
     zipCode: "",
-    date: "",
+    date: undefined,
     timeSlot: "",
+    specificTime: "",
     isEmergency: false,
     name: "",
     email: "",
@@ -176,7 +184,10 @@ export default function BookingPage() {
     technicianId: null,
   })
 
-  const updateBookingData = (field: keyof BookingData, value: string | boolean | number | null) => {
+  const today = startOfToday()
+  const disabledDays = { before: today }
+
+  const updateBookingData = <K extends keyof BookingData>(field: K, value: BookingData[K]) => {
     setBookingData((prev) => ({ ...prev, [field]: value }))
   }
 
@@ -189,6 +200,12 @@ export default function BookingPage() {
   }
 
   const selectedService = services.find((s) => s.id === bookingData.service)
+  const selectedTimeSlot = timeSlots.find((t) => t.id === bookingData.timeSlot)
+
+  const canProceedStep3 = useMemo(() => {
+    if (bookingData.isEmergency) return bookingData.technicianId !== null
+    return bookingData.date !== undefined && bookingData.timeSlot !== "" && bookingData.specificTime !== ""
+  }, [bookingData.isEmergency, bookingData.date, bookingData.timeSlot, bookingData.specificTime, bookingData.technicianId])
 
   return (
     <div className="min-h-screen bg-background">
@@ -461,7 +478,7 @@ export default function BookingPage() {
               </div>
             )}
 
-            {/* Step 3: Schedule */}
+            {/* Step 3: Schedule - FULLY FUNCTIONAL */}
             {currentStep === 3 && (
               <div>
                 <div className="mb-8 text-center">
@@ -540,77 +557,94 @@ export default function BookingPage() {
                   </div>
                 ) : (
                   <div className="grid gap-6 lg:grid-cols-2">
-                    {/* Date Picker */}
+                    {/* Calendar Picker */}
                     <div className="glass-card rounded-xl p-6">
-                      <Label className="mb-4 block text-sm font-medium">
+                      <Label className="mb-4 block text-sm font-medium flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-primary" />
                         Select Date
                       </Label>
-                      <Input
-                        type="date"
-                        value={bookingData.date}
-                        onChange={(e) =>
-                          updateBookingData("date", e.target.value)
-                        }
-                        className="bg-secondary/50"
-                        min={new Date().toISOString().split("T")[0]}
+                      
+                      <DayPicker
+                        mode="single"
+                        selected={bookingData.date}
+                        onSelect={(date) => updateBookingData("date", date)}
+                        disabled={disabledDays}
+                        showOutsideDays={false}
+                        className="mx-auto"
+                        classNames={{
+                          months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
+                          month: "space-y-4",
+                          caption: "flex justify-center pt-1 relative items-center",
+                          caption_label: "text-sm font-medium text-foreground",
+                          nav: "space-x-1 flex items-center",
+                          nav_button: cn(
+                            "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 inline-flex items-center justify-center rounded-md border border-border hover:bg-secondary transition-colors"
+                          ),
+                          nav_button_previous: "absolute left-1",
+                          nav_button_next: "absolute right-1",
+                          table: "w-full border-collapse space-y-1",
+                          head_row: "flex",
+                          head_cell: "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem] flex-1 text-center",
+                          row: "flex w-full mt-2",
+                          cell: "h-9 w-9 text-center text-sm p-0 relative flex-1 [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
+                          day: cn(
+                            "h-9 w-9 p-0 font-normal aria-selected:opacity-100 rounded-md inline-flex items-center justify-center hover:bg-secondary transition-colors mx-auto"
+                          ),
+                          day_range_end: "day-range-end",
+                          day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+                          day_today: "bg-accent text-accent-foreground",
+                          day_outside: "day-outside text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
+                          day_disabled: "text-muted-foreground opacity-50 cursor-not-allowed",
+                          day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
+                          day_hidden: "invisible",
+                        }}
+                        components={{
+                          IconLeft: () => <ChevronLeft className="h-4 w-4" />,
+                          IconRight: () => <ChevronRight className="h-4 w-4" />,
+                        }}
                       />
 
-                      {/* Calendar Preview */}
-                      <div className="mt-6 grid grid-cols-7 gap-2 text-center">
-                        {["S", "M", "T", "W", "T", "F", "S"].map((day, i) => (
-                          <div
-                            key={i}
-                            className="text-xs font-medium text-muted-foreground"
-                          >
-                            {day}
-                          </div>
-                        ))}
-                        {Array.from({ length: 35 }).map((_, i) => {
-                          const day = i - 3
-                          const isToday = day === 15
-                          const isPast = day < 15
-                          return (
-                            <div
-                              key={i}
-                              className={cn(
-                                "flex h-8 w-8 items-center justify-center rounded-full text-sm",
-                                day > 0 && day <= 31
-                                  ? isToday
-                                    ? "bg-primary text-primary-foreground"
-                                    : isPast
-                                      ? "text-muted-foreground/50"
-                                      : "text-foreground hover:bg-secondary"
-                                  : ""
-                              )}
-                            >
-                              {day > 0 && day <= 31 ? day : ""}
-                            </div>
-                          )
-                        })}
-                      </div>
+                      {bookingData.date && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="mt-4 rounded-lg bg-primary/10 border border-primary/20 p-3 text-center"
+                        >
+                          <span className="text-sm text-foreground">
+                            Selected: <span className="font-semibold text-primary">{format(bookingData.date, "EEEE, MMMM d, yyyy")}</span>
+                          </span>
+                        </motion.div>
+                      )}
                     </div>
 
                     {/* Time Slots */}
                     <div className="glass-card rounded-xl p-6">
-                      <Label className="mb-4 block text-sm font-medium">
-                        Preferred Time
+                      <Label className="mb-4 block text-sm font-medium flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-primary" />
+                        Select Time
                       </Label>
-                      <div className="space-y-3">
+
+                      {/* Time Period Selection */}
+                      <div className="space-y-3 mb-6">
                         {timeSlots.map((slot) => (
                           <button
                             key={slot.id}
-                            onClick={() =>
+                            onClick={() => {
                               updateBookingData("timeSlot", slot.id)
-                            }
+                              updateBookingData("specificTime", "")
+                            }}
                             className={cn(
                               "flex w-full items-center justify-between rounded-lg bg-secondary/50 p-4 transition-all",
                               bookingData.timeSlot === slot.id
                                 ? "border border-primary/50 glow-blue"
-                                : "hover:bg-secondary"
+                                : "hover:bg-secondary border border-transparent"
                             )}
                           >
                             <div className="flex items-center gap-3">
-                              <Clock className="h-5 w-5 text-primary" />
+                              <slot.icon className={cn(
+                                "h-5 w-5",
+                                bookingData.timeSlot === slot.id ? "text-primary" : "text-muted-foreground"
+                              )} />
                               <div className="text-left">
                                 <div className="font-medium text-foreground">
                                   {slot.label}
@@ -626,6 +660,63 @@ export default function BookingPage() {
                           </button>
                         ))}
                       </div>
+
+                      {/* Specific Time Selection */}
+                      <AnimatePresence>
+                        {bookingData.timeSlot && selectedTimeSlot && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="overflow-hidden"
+                          >
+                            <Label className="mb-3 block text-sm font-medium text-muted-foreground">
+                              Choose specific time
+                            </Label>
+                            <div className="grid grid-cols-3 gap-2">
+                              {selectedTimeSlot.slots.map((time) => (
+                                <button
+                                  key={time}
+                                  onClick={() => updateBookingData("specificTime", time)}
+                                  className={cn(
+                                    "rounded-lg py-2.5 px-3 text-sm font-medium transition-all",
+                                    bookingData.specificTime === time
+                                      ? "bg-primary text-primary-foreground"
+                                      : "bg-secondary/50 text-foreground hover:bg-secondary"
+                                  )}
+                                >
+                                  {time}
+                                </button>
+                              ))}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
+                      {/* Selection Summary */}
+                      <AnimatePresence>
+                        {bookingData.date && bookingData.specificTime && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="mt-6 rounded-lg bg-success/10 border border-success/20 p-4"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-success/20">
+                                <Check className="h-5 w-5 text-success" />
+                              </div>
+                              <div>
+                                <div className="text-sm font-medium text-foreground">
+                                  Appointment Selected
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  {format(bookingData.date, "MMM d, yyyy")} at {bookingData.specificTime}
+                                </div>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   </div>
                 )}
@@ -808,21 +899,56 @@ export default function BookingPage() {
                         <span className="text-foreground">
                           {bookingData.isEmergency
                             ? "Immediate Dispatch"
-                            : bookingData.date || "Today"}
+                            : bookingData.date
+                            ? format(bookingData.date, "EEEE, MMMM d, yyyy")
+                            : "Not selected"}
                         </span>
                       </div>
-                      {!bookingData.isEmergency && (
+                      {!bookingData.isEmergency && bookingData.specificTime && (
                         <div className="flex items-center gap-3">
                           <Clock className="h-5 w-5 text-primary" />
                           <span className="text-foreground">
-                            {timeSlots.find(
-                              (t) => t.id === bookingData.timeSlot
-                            )?.time || "Morning"}
+                            {bookingData.specificTime}
                           </span>
                         </div>
                       )}
                     </div>
                   </div>
+
+                  {/* Contact Summary */}
+                  {bookingData.name && (
+                    <div className="glass-card rounded-xl p-6">
+                      <div className="mb-4 flex items-center justify-between">
+                        <h3 className="font-semibold text-foreground">
+                          Contact Info
+                        </h3>
+                        <button
+                          onClick={() => setCurrentStep(4)}
+                          className="text-sm text-primary hover:underline"
+                        >
+                          Edit
+                        </button>
+                      </div>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-foreground">{bookingData.name}</span>
+                        </div>
+                        {bookingData.email && (
+                          <div className="flex items-center gap-2">
+                            <Mail className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-foreground">{bookingData.email}</span>
+                          </div>
+                        )}
+                        {bookingData.phone && (
+                          <div className="flex items-center gap-2">
+                            <Phone className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-foreground">{bookingData.phone}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Price Estimate */}
                   <div className="glass-card rounded-xl p-6">
@@ -899,7 +1025,10 @@ export default function BookingPage() {
           {currentStep < 5 ? (
             <Button
               onClick={nextStep}
-              disabled={currentStep === 1 && !bookingData.service}
+              disabled={
+                (currentStep === 1 && !bookingData.service) ||
+                (currentStep === 3 && !canProceedStep3)
+              }
               className="gap-2 glow-blue"
             >
               Continue
