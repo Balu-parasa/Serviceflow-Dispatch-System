@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { ThemeProvider } from '@/components/theme-provider'
+import { SmoothScrollProvider } from '@/components/smooth-scroll-provider'
 import './globals.css'
 
 const inter = Inter({ 
@@ -10,7 +11,7 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: 'Schneider Smart Service Platform | AI-Powered Technician Dispatch',
+  title: 'ServiceFlow — Real-Time Dispatch & Service Management Platform',
   description: 'Book trusted technicians for home, commercial, and industrial services with AI-powered realtime tracking and dispatching.',
   keywords: ['technician booking', 'smart dispatch', 'home services', 'HVAC', 'plumbing', 'electrical', 'realtime tracking', 'AI dispatch'],
   generator: 'v0.app',
@@ -56,7 +57,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange={false}
         >
-          {children}
+          <SmoothScrollProvider>
+            {children}
+          </SmoothScrollProvider>
         </ThemeProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>

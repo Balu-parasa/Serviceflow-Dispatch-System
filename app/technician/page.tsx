@@ -50,6 +50,19 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import api from "@/lib/api"
+import dynamic from "next/dynamic"
+import echo from "@/lib/echo"
+import { toast, Toaster } from "sonner"
+
+const DynamicMap = dynamic(() => import("@/components/map"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-full w-full items-center justify-center bg-secondary/50">
+      <span className="text-xs text-muted-foreground animate-pulse">Loading Tactical Map...</span>
+    </div>
+  ),
+})
 
 // Active Mission Data
 const activeMission = {
@@ -126,12 +139,7 @@ const missionQueue = [
   },
 ]
 
-const alerts = [
-  { id: 1, type: "emergency", title: "Emergency Request", message: "Gas leak reported 0.8 mi away - $150 bonus", time: "Just now", action: "Accept" },
-  { id: 2, type: "bonus", title: "Surge Pricing Active", message: "HVAC jobs +25% in Downtown area", time: "5 min ago", action: "View" },
-  { id: 3, type: "message", title: "Customer Message", message: "Sarah M.: 'I'm in apartment 12B'", time: "12 min ago", action: "Reply" },
-  { id: 4, type: "payment", title: "Payment Received", message: "Job #2846 - $285.00 deposited", time: "1 hr ago", action: null },
-]
+// Real-time alerts are loaded dynamically from backend notification service
 
 const todayStats = {
   completedJobs: 4,
@@ -167,10 +175,252 @@ const inventoryItems = [
 
 export default function TechnicianDashboard() {
   const [isOnline, setIsOnline] = useState(true)
-  const [missionStatus, setMissionStatus] = useState<"en-route" | "arrived" | "in-progress" | "completed">("in-progress")
+  const [missionStatus, setMissionStatus] = useState<string>("in_progress")
   const [showAlerts, setShowAlerts] = useState(false)
   const [elapsedTime, setElapsedTime] = useState(0)
   const [currentTime, setCurrentTime] = useState(new Date())
+
+  // Real backend states
+  const [user, setUser] = useState<any>(null)
+  const [activeMission, setActiveMission] = useState<any>(null)
+  const [missionQueue, setMissionQueue] = useState<any[]>([])
+  const [todayStats, setTodayStats] = useState<any>({
+    completedJobs: 0, totalEarnings: 0, avgRating: 5.0, hoursWorked: 0, bonusEarned: 0
+  })
+  
+  const [techLocation, setTechLocation] = useState({ lat: 37.7749, lng: -122.4194 })
+  const [alerts, setAlerts] = useState<any[]>([])
+  
+  const fetchNotifications = async () => {
+    try {
+      const res = await api.get('/notifications')
+      const dbNotifications = res.data.data || res.data || []
+      const mappedAlerts = dbNotifications.map((n: any) => {
+        let actionLabel = null
+        if (n.type === 'booking_assigned' || n.type === 'emergency_alert') {
+          actionLabel = 'Accept'
+        } else if (n.type === 'chat_message') {
+          actionLabel = 'View'
+        }
+        return {
+          id: n.id,
+          type: n.type === 'emergency_alert' ? 'emergency' : n.type,
+          title: n.title,
+          message: n.message,
+          time: new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          action: actionLabel,
+          data: n.data,
+          is_read: n.is_read
+        }
+      })
+      setAlerts(mappedAlerts)
+    } catch (err) {
+      console.error("Failed to load notifications", err)
+    }
+  }
+
+  // Single modular data fetcher
+  const fetchDashboardData = async () => {
+    try {
+      // Fetch dynamic user profile & enforce technician role authorization
+      const meRes = await api.get('/auth/me').catch(() => null)
+      if (meRes?.data?.user) {
+        const currentUser = meRes.data.user
+        if (currentUser.role !== 'technician') {
+          // Role mismatch - redirect to correct dashboard
+          if (currentUser.role === 'admin') {
+            window.location.href = '/admin'
+          } else {
+            window.location.href = '/customer'
+          }
+          return
+        }
+        setUser(currentUser)
+      } else {
+        // Not authenticated
+        localStorage.removeItem('token')
+        document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;"
+        window.location.href = '/login?redirect=/technician&message=first%20u%20have%20to%20login'
+        return
+      }
+
+      const assignmentsRes = await api.get('/technician/assignments')
+      const bookings = assignmentsRes.data.assignments || []
+      
+      const active = bookings.find((b: any) => 
+        ['accepted', 'en_route', 'in_progress'].includes(b.status)
+      )
+      const queue = bookings.filter((b: any) => b.id !== active?.id)
+      
+      if (active) {
+        setActiveMission(active)
+        setMissionStatus(active.status || "accepted")
+      } else {
+        setActiveMission(null)
+        setMissionStatus("idle")
+      }
+      setMissionQueue(queue)
+
+      fetchNotifications()
+
+      const earningsRes = await api.get('/technician/earnings')
+      if (earningsRes.data?.today) {
+        setTodayStats({
+          completedJobs: earningsRes.data.today.jobs,
+          totalEarnings: earningsRes.data.today.earnings,
+          avgRating: earningsRes.data.today.rating || 5.0,
+          hoursWorked: 6.5,
+          bonusEarned: earningsRes.data.today.jobs * 15,
+        })
+      }
+    } catch (err) {
+      console.error("Failed to load dashboard data", err)
+    }
+  }
+
+  // Fetch assignments & stats - Polling for real-time responsiveness
+  useEffect(() => {
+    fetchDashboardData()
+    const interval = setInterval(() => {
+      fetchDashboardData()
+    }, 3500)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Real-time Echo Notification subscription
+  useEffect(() => {
+    if (!user?.id || !echo) return
+
+    const channel = echo.private(`user.${user.id}`)
+      .listen('.notification.created', (event: any) => {
+        console.log("Realtime notification received:", event)
+        const n = event.notification
+        let actionLabel = null
+        if (n.type === 'booking_assigned' || n.type === 'emergency_alert') {
+          actionLabel = 'Accept'
+        } else if (n.type === 'chat_message') {
+          actionLabel = 'View'
+        }
+        const newAlert = {
+          id: n.id,
+          type: n.type === 'emergency_alert' ? 'emergency' : n.type,
+          title: n.title,
+          message: n.message,
+          time: "Just now",
+          action: actionLabel,
+          data: n.data,
+          is_read: n.is_read
+        }
+        setAlerts(prev => {
+          if (prev.some(existing => existing.id === n.id)) {
+            return prev
+          }
+          return [newAlert, ...prev]
+        })
+
+        if (n.type === 'chat_message') {
+          toast.info(n.title || "New Message", {
+            description: n.message,
+            action: {
+              label: "View",
+              onClick: () => {
+                window.location.href = `/chat?bookingId=${n.data?.booking_id}`
+              }
+            }
+          })
+        } else {
+          toast.info(n.title || "Notification Received", {
+            description: n.message
+          })
+        }
+
+        fetchDashboardData()
+      })
+      .listen('.booking.status.updated', (event: any) => {
+        console.log("Realtime booking update received:", event)
+        toast.success("Service Updated", {
+          description: "An assignment update has occurred."
+        })
+        fetchDashboardData()
+      })
+
+    return () => {
+      channel.stopListening('.notification.created')
+      channel.stopListening('.booking.status.updated')
+    }
+  }, [user?.id])
+
+  const handleLogout = async () => {
+    try {
+      await api.post('/auth/logout')
+    } catch (err) {
+      console.error("Logout request failed", err)
+    } finally {
+      localStorage.removeItem('token')
+      document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;"
+      window.location.href = '/login'
+    }
+  }
+
+  const handleAcceptMission = async (id: number) => {
+    try {
+      await api.post(`/bookings/${id}/accept`)
+      await fetchDashboardData()
+    } catch (err: any) {
+      console.error("Failed to accept mission", err)
+      alert(err.response?.data?.message || "Failed to accept mission")
+    }
+  }
+
+  const handleRejectMission = async (id: number) => {
+    try {
+      await api.post(`/bookings/${id}/reject`)
+      await fetchDashboardData()
+    } catch (err: any) {
+      console.error("Failed to reject mission", err)
+      alert(err.response?.data?.message || "Failed to reject mission")
+    }
+  }
+
+  // Ping location
+  useEffect(() => {
+    if (!isOnline) return
+    const ping = setInterval(() => {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const loc = { latitude: pos.coords.latitude, longitude: pos.coords.longitude }
+            setTechLocation({ lat: loc.latitude, lng: loc.longitude })
+            api.post('/technician/location', loc).catch(e => {})
+          },
+          () => {
+            // Mock moving slightly if geolocation is denied/fails
+            setTechLocation(prev => {
+              const newLoc = { lat: prev.lat + 0.001, lng: prev.lng + 0.001 }
+              api.post('/technician/location', { latitude: newLoc.lat, longitude: newLoc.lng }).catch(e => {})
+              return newLoc
+            })
+          }
+        )
+      }
+    }, 10000)
+    return () => clearInterval(ping)
+  }, [isOnline])
+  
+  const handleStatusUpdate = async (status: string) => {
+    if (!activeMission?.id) return
+    try {
+      await api.post(`/bookings/${activeMission.id}/status`, { status })
+      setMissionStatus(status)
+      if (status === "completed") {
+        setTimeout(async () => {
+          await fetchDashboardData()
+        }, 1500)
+      }
+    } catch (err) {
+      console.error("Failed to update status", err)
+    }
+  }
 
   // Timer for active job
   useEffect(() => {
@@ -196,9 +446,8 @@ export default function TechnicianDashboard() {
   }
 
   const statusSteps = [
-    { id: "en-route", label: "En Route", icon: Navigation, color: "primary" },
-    { id: "arrived", label: "Arrived", icon: MapPin, color: "accent" },
-    { id: "in-progress", label: "Working", icon: Wrench, color: "warning" },
+    { id: "en_route", label: "En Route", icon: Navigation, color: "primary" },
+    { id: "in_progress", label: "Working", icon: Wrench, color: "warning" },
     { id: "completed", label: "Complete", icon: CheckCircle, color: "success" },
   ]
 
@@ -206,6 +455,7 @@ export default function TechnicianDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Toaster richColors position="top-right" />
       {/* Ambient Background */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute inset-0 gradient-mesh opacity-20" />
@@ -310,7 +560,19 @@ export default function TechnicianDashboard() {
                               <div className="flex items-center justify-between mt-1.5">
                                 <span className="text-[10px] text-muted-foreground">{alert.time}</span>
                                 {alert.action && (
-                                  <Button size="sm" variant={alert.type === "emergency" ? "destructive" : "outline"} className="h-5 px-2 text-[10px]">
+                                  <Button 
+                                     onClick={(e) => {
+                                       e.stopPropagation()
+                                       if (alert.action === 'View' && alert.data?.booking_id) {
+                                         window.location.href = `/chat?bookingId=${alert.data.booking_id}`
+                                       } else if (alert.data?.booking_id) {
+                                         handleAcceptMission(alert.data.booking_id)
+                                       }
+                                     }}
+                                     size="sm" 
+                                     variant={alert.type === "emergency" ? "destructive" : "outline"} 
+                                     className="h-5 px-2 text-[10px]"
+                                  >
                                     {alert.action}
                                   </Button>
                                 )}
@@ -331,13 +593,24 @@ export default function TechnicianDashboard() {
                 <User className="h-4 w-4" />
               </div>
               <div className="hidden sm:block">
-                <div className="text-xs font-medium text-foreground">John Mitchell</div>
+                <div className="text-xs font-medium text-foreground">{user?.name || "John Mitchell"}</div>
                 <div className="flex items-center gap-1 text-[10px] text-warning">
                   <Star className="h-2.5 w-2.5 fill-warning" />
-                  4.9 Rating
+                  <span>{user?.technician_profile?.rating || "4.9"} Rating</span>
                 </div>
               </div>
             </div>
+
+            <div className="h-6 w-px bg-border/50 mx-1" />
+            
+            <button
+              onClick={handleLogout}
+              className="w-8 h-8 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 flex items-center justify-center transition-all"
+              title="Log Out"
+              id="logout-button"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
         </div>
       </header>
@@ -353,6 +626,7 @@ export default function TechnicianDashboard() {
               className="glass-card overflow-hidden rounded-xl"
             >
               {/* Mission Header */}
+              {activeMission ? (
               <div className="flex items-center justify-between border-b border-border/50 px-4 py-3 bg-gradient-to-r from-primary/5 to-transparent">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/20 text-accent">
@@ -361,21 +635,26 @@ export default function TechnicianDashboard() {
                   <div>
                     <div className="flex items-center gap-2">
                       <h2 className="text-sm font-bold text-foreground">ACTIVE MISSION</h2>
-                      <span className="rounded bg-warning/20 px-1.5 py-0.5 text-[10px] font-bold text-warning">
-                        PRIORITY
-                      </span>
+                      {activeMission?.is_emergency && (
+                        <span className="rounded bg-warning/20 px-1.5 py-0.5 text-[10px] font-bold text-warning">
+                          EMERGENCY
+                        </span>
+                      )}
                     </div>
-                    <p className="text-[10px] text-muted-foreground font-mono">{activeMission.id}</p>
+                    <p className="text-[10px] text-muted-foreground font-mono">#{activeMission?.id}</p>
                   </div>
                 </div>
                 <div className="text-right">
                   <div className="flex items-center gap-1 text-lg font-bold text-success">
                     <DollarSign className="h-4 w-4" />
-                    {activeMission.earnings.total}
+                    {activeMission?.estimated_cost || 120}
                   </div>
                   <div className="text-[10px] text-muted-foreground">Est. Earnings</div>
                 </div>
               </div>
+              ) : (
+                <div className="p-8 text-center text-muted-foreground">No active missions right now.</div>
+              )}
 
               {/* Mission Status Progress */}
               <div className="border-b border-border/50 p-4">
@@ -384,7 +663,8 @@ export default function TechnicianDashboard() {
                     <div key={step.id} className="flex items-center">
                       <div className="flex flex-col items-center">
                         <button
-                          onClick={() => setMissionStatus(step.id as typeof missionStatus)}
+                          onClick={() => handleStatusUpdate(step.id)}
+                          disabled={!activeMission}
                           className={cn(
                             "flex h-10 w-10 items-center justify-center rounded-full transition-all relative",
                             index <= currentStepIndex
@@ -439,6 +719,7 @@ export default function TechnicianDashboard() {
               </div>
 
               {/* Mission Details */}
+              {activeMission && (
               <div className="p-4">
                 <div className="grid gap-4 md:grid-cols-2">
                   {/* Customer Info */}
@@ -449,18 +730,15 @@ export default function TechnicianDashboard() {
                     </div>
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-foreground">{activeMission.customer.name}</span>
+                        <span className="text-sm font-medium text-foreground">{activeMission?.customer?.name}</span>
                         <div className="flex items-center gap-1 text-warning">
                           <Star className="h-3 w-3 fill-warning" />
-                          <span className="text-xs">{activeMission.customer.rating}</span>
+                          <span className="text-xs">5.0</span>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <Phone className="h-3 w-3" />
-                        <span>{activeMission.customer.phone}</span>
-                      </div>
-                      <div className="text-[10px] text-muted-foreground">
-                        {activeMission.customer.previousJobs} previous jobs
+                        <span>{activeMission?.customer?.phone || "(555) 234-5678"}</span>
                       </div>
                     </div>
                   </div>
@@ -472,9 +750,9 @@ export default function TechnicianDashboard() {
                       <h3 className="text-xs font-semibold text-foreground">Location</h3>
                     </div>
                     <div className="space-y-1">
-                      <div className="text-sm font-medium text-foreground">{activeMission.location.address}</div>
-                      <div className="text-xs text-muted-foreground">{activeMission.location.city}</div>
-                      <div className="text-xs text-primary font-medium">{activeMission.location.building}</div>
+                      <div className="text-sm font-medium text-foreground">{activeMission?.address}</div>
+                      <div className="text-xs text-muted-foreground">{activeMission?.city}</div>
+                      <div className="text-xs text-primary font-medium">{activeMission?.property_type}</div>
                     </div>
                   </div>
                 </div>
@@ -483,15 +761,10 @@ export default function TechnicianDashboard() {
                 <div className="mt-4 rounded-lg bg-secondary/30 p-3">
                   <div className="flex items-center gap-2 mb-2">
                     <AlertTriangle className="h-4 w-4 text-warning" />
-                    <h3 className="text-xs font-semibold text-foreground">Issue Details</h3>
-                    {activeMission.issue.photos > 0 && (
-                      <span className="rounded bg-primary/20 px-1.5 py-0.5 text-[10px] text-primary">
-                        {activeMission.issue.photos} photos
-                      </span>
-                    )}
+                    <h3 className="text-xs font-semibold text-foreground">Service Details</h3>
                   </div>
-                  <div className="text-sm font-medium text-foreground mb-1">{activeMission.issue.title}</div>
-                  <p className="text-xs text-muted-foreground">{activeMission.issue.description}</p>
+                  <div className="text-sm font-medium text-foreground mb-1">{activeMission?.service?.name}</div>
+                  <p className="text-xs text-muted-foreground">{activeMission?.notes || "No additional notes."}</p>
                 </div>
 
                 {/* Earnings Breakdown */}
@@ -499,21 +772,17 @@ export default function TechnicianDashboard() {
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-semibold text-foreground">Earnings Breakdown</span>
                   </div>
-                  <div className="grid grid-cols-4 gap-2 text-center">
+                  <div className="grid grid-cols-3 gap-2 text-center">
                     <div>
-                      <div className="text-sm font-bold text-foreground">${activeMission.earnings.base}</div>
+                      <div className="text-sm font-bold text-foreground">${activeMission?.estimated_cost || 120}</div>
                       <div className="text-[10px] text-muted-foreground">Base</div>
                     </div>
                     <div>
-                      <div className="text-sm font-bold text-foreground">${activeMission.earnings.parts}</div>
-                      <div className="text-[10px] text-muted-foreground">Parts</div>
-                    </div>
-                    <div>
-                      <div className="text-sm font-bold text-foreground">${activeMission.earnings.emergency}</div>
+                      <div className="text-sm font-bold text-foreground">${activeMission?.is_emergency ? 50 : 0}</div>
                       <div className="text-[10px] text-muted-foreground">Bonus</div>
                     </div>
                     <div className="border-l border-border">
-                      <div className="text-sm font-bold text-success">${activeMission.earnings.total}</div>
+                      <div className="text-sm font-bold text-success">${(activeMission?.estimated_cost || 120) + (activeMission?.is_emergency ? 50 : 0)}</div>
                       <div className="text-[10px] text-muted-foreground">Total</div>
                     </div>
                   </div>
@@ -529,10 +798,12 @@ export default function TechnicianDashboard() {
                     <Phone className="h-3.5 w-3.5" />
                     Call
                   </Button>
-                  <Button variant="outline" size="sm" className="gap-1.5">
-                    <MessageSquare className="h-3.5 w-3.5" />
-                    Message
-                  </Button>
+                  <Link href={`/chat?bookingId=${activeMission.id}`} className="w-full">
+                    <Button variant="outline" size="sm" className="gap-1.5 w-full">
+                      <MessageSquare className="h-3.5 w-3.5" />
+                      Message
+                    </Button>
+                  </Link>
                   <Button variant="outline" size="sm" className="gap-1.5">
                     <Camera className="h-3.5 w-3.5" />
                     Photo
@@ -546,7 +817,7 @@ export default function TechnicianDashboard() {
                     className="mt-4"
                   >
                     <Button
-                      onClick={() => setMissionStatus("completed")}
+                      onClick={() => handleStatusUpdate("completed")}
                       className="w-full gap-2 bg-success hover:bg-success/90 text-success-foreground glow-green"
                       size="lg"
                     >
@@ -564,13 +835,11 @@ export default function TechnicianDashboard() {
                   >
                     <CheckCircle className="h-8 w-8 text-success mx-auto mb-2" />
                     <div className="text-sm font-bold text-success">Mission Complete!</div>
-                    <div className="text-xs text-muted-foreground mt-1">Earned ${activeMission.earnings.total}</div>
-                    <Button className="mt-3" size="sm" onClick={() => setMissionStatus("en-route")}>
-                      Start Next Mission
-                    </Button>
+                    <div className="text-xs text-muted-foreground mt-1">Earned ${activeMission?.estimated_cost || 120}</div>
                   </motion.div>
                 )}
               </div>
+              )}
             </motion.div>
 
             {/* Live Map Preview */}
@@ -578,45 +847,15 @@ export default function TechnicianDashboard() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="glass-card rounded-xl overflow-hidden"
+              className="glass-card rounded-xl overflow-hidden border border-primary/10"
             >
-              <div className="relative h-48 bg-secondary/30">
-                <div className="absolute inset-0 grid-pattern opacity-30" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/20 mx-auto mb-2">
-                      <Compass className="h-6 w-6 text-primary" />
-                    </div>
-                    <p className="text-sm font-medium text-foreground">Live Navigation</p>
-                    <p className="text-xs text-muted-foreground">{activeMission.location.address}</p>
-                  </div>
-                </div>
-
-                {/* Route indicator */}
-                <motion.div
-                  className="absolute left-1/4 top-1/2 h-1 bg-primary rounded-full"
-                  initial={{ width: 0 }}
-                  animate={{ width: "50%" }}
-                  transition={{ duration: 2, ease: "easeOut" }}
+              <div className="relative h-64 w-full">
+                <DynamicMap
+                  customerLat={activeMission?.latitude ? parseFloat(activeMission.latitude) : 37.7749}
+                  customerLng={activeMission?.longitude ? parseFloat(activeMission.longitude) : -122.4194}
+                  techLat={techLocation.lat}
+                  techLng={techLocation.lng}
                 />
-
-                {/* Current position */}
-                <motion.div
-                  className="absolute top-1/2 -translate-y-1/2"
-                  initial={{ left: "25%" }}
-                  animate={{ left: "75%" }}
-                  transition={{ duration: 2, ease: "easeOut" }}
-                >
-                  <div className="relative">
-                    <div className="absolute inset-0 animate-ping rounded-full bg-primary/50 h-4 w-4" />
-                    <div className="relative h-4 w-4 rounded-full bg-primary border-2 border-white" />
-                  </div>
-                </motion.div>
-
-                {/* Destination */}
-                <div className="absolute right-1/4 top-1/2 -translate-y-1/2">
-                  <MapPin className="h-6 w-6 text-destructive" />
-                </div>
               </div>
             </motion.div>
 
@@ -638,38 +877,70 @@ export default function TechnicianDashboard() {
               </div>
 
               <div className="p-2 space-y-2">
-                {missionQueue.map((mission, i) => (
-                  <motion.div
-                    key={mission.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.1 + i * 0.05 }}
-                    className="flex items-center gap-3 rounded-lg bg-secondary/30 p-3 hover:bg-secondary/50 transition-colors cursor-pointer"
-                  >
-                    <div className={cn(
-                      "flex h-10 w-10 items-center justify-center rounded-lg",
-                      mission.priority === "high" ? "bg-warning/20 text-warning" : "bg-primary/20 text-primary"
-                    )}>
-                      <mission.icon className="h-5 w-5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-foreground">{mission.customer}</span>
-                        {mission.priority === "high" && (
-                          <span className="rounded bg-warning/20 px-1 py-0.5 text-[8px] font-bold text-warning">
-                            PRIORITY
-                          </span>
-                        )}
+                {missionQueue.map((mission, i) => {
+                  const MissionIcon = mission.icon || Wrench
+                  return (
+                    <motion.div
+                      key={mission.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.1 + i * 0.05 }}
+                      className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-lg bg-secondary/30 p-3 hover:bg-secondary/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className={cn(
+                          "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
+                          mission.priority === "high" || mission.is_emergency ? "bg-warning/20 text-warning" : "bg-primary/20 text-primary"
+                        )}>
+                          <MissionIcon className="h-5 w-5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-foreground">{mission?.customer?.name || "Customer"}</span>
+                            {(mission?.is_emergency || mission.priority === "high") && (
+                              <span className="rounded bg-warning/20 px-1 py-0.5 text-[8px] font-bold text-warning animate-pulse">
+                                EMERGENCY
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs text-muted-foreground truncate">{mission?.service?.name || mission?.type || "Standard Repair"} - {mission?.address}</div>
+                          <div className="text-[10px] text-primary/80 font-mono mt-0.5 uppercase tracking-wider">{mission.status || "PENDING DISPATCH"}</div>
+                        </div>
                       </div>
-                      <div className="text-xs text-muted-foreground">{mission.type} - {mission.address}</div>
-                      <div className="text-[10px] text-muted-foreground mt-0.5">{mission.eta}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-bold text-foreground">{mission.scheduledTime}</div>
-                      <div className="text-xs text-success">${mission.earnings}</div>
-                    </div>
-                  </motion.div>
-                ))}
+                      
+                      <div className="flex items-center justify-between sm:justify-end gap-3 border-t sm:border-0 border-border/40 pt-2 sm:pt-0">
+                        <div className="text-left sm:text-right">
+                          <div className="text-sm font-bold text-foreground font-mono">{mission?.time_slot || "ASAP"}</div>
+                          <div className="text-xs text-success font-semibold">${mission?.estimated_cost || 120}</div>
+                        </div>
+                        
+                        <div className="flex gap-1.5">
+                          <Button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleAcceptMission(mission.id)
+                            }}
+                            className="h-7 px-2.5 text-xs bg-success hover:bg-success/80 text-success-foreground font-semibold"
+                            size="sm"
+                          >
+                            Accept
+                          </Button>
+                          <Button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleRejectMission(mission.id)
+                            }}
+                            variant="outline"
+                            className="h-7 px-2.5 text-xs border-destructive/30 hover:bg-destructive/10 hover:text-destructive text-muted-foreground font-semibold"
+                            size="sm"
+                          >
+                            Reject
+                          </Button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )
+                })}
               </div>
             </motion.div>
           </div>

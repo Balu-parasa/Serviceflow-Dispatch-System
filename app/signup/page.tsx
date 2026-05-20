@@ -1,6 +1,6 @@
-"use client"
+﻿"use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import Link from "next/link"
 import {
@@ -12,17 +12,17 @@ import {
   Eye,
   EyeOff,
   Chrome,
-  Apple,
   Phone,
   Check,
   Shield,
   Wrench,
-  Building,
+  AlertTriangle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
+import api from "@/lib/api"
 
 const accountTypes = [
   {
@@ -37,12 +37,6 @@ const accountTypes = [
     title: "Technician",
     description: "Join our network of professionals",
   },
-  {
-    id: "business",
-    icon: Building,
-    title: "Business",
-    description: "Manage multiple properties",
-  },
 ]
 
 export default function SignupPage() {
@@ -50,6 +44,9 @@ export default function SignupPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [step, setStep] = useState(1)
   const [accountType, setAccountType] = useState("")
+  const [specialty, setSpecialty] = useState("")
+  const [errorMessage, setErrorMessage] = useState("")
+  const [redirectPath, setRedirectPath] = useState("")
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -57,6 +54,16 @@ export default function SignupPage() {
     password: "",
     confirmPassword: "",
   })
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search)
+      const red = params.get("redirect")
+      if (red) {
+        setRedirectPath(red)
+      }
+    }
+  }, [])
 
   const updateFormData = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -68,12 +75,50 @@ export default function SignupPage() {
       setStep(2)
       return
     }
+
+    if (formData.password !== formData.confirmPassword) {
+      setErrorMessage("Passwords do not match.")
+      return
+    }
+
     setIsLoading(true)
-    // Simulate signup
-    setTimeout(() => {
+    setErrorMessage("")
+
+    try {
+      const payload = {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        password: formData.password,
+        password_confirmation: formData.confirmPassword,
+        role: accountType,
+        specialty: accountType === "technician" ? specialty : undefined,
+      }
+
+      const response = await api.post("/auth/register", payload)
+      const { token, redirect } = response.data
+
+      // Store token
+      localStorage.setItem("token", token)
+      document.cookie = `token=${token}; path=/; max-age=31536000; SameSite=Lax`
+
+      // Redirect
+      window.location.href = redirectPath || redirect || "/customer"
+    } catch (err: any) {
+      console.error(err)
+      const errors = err.response?.data?.errors
+      let message = err.response?.data?.message || "Registration failed. Please check details."
+      if (errors) {
+        // Collect first error message
+        const firstErrorKey = Object.keys(errors)[0]
+        if (firstErrorKey && errors[firstErrorKey]?.[0]) {
+          message = errors[firstErrorKey][0]
+        }
+      }
+      setErrorMessage(message)
+    } finally {
       setIsLoading(false)
-      window.location.href = "/booking"
-    }, 1500)
+    }
   }
 
   return (
@@ -130,7 +175,7 @@ export default function SignupPage() {
               className="mt-12 rounded-xl border border-border bg-card/50 p-6"
             >
               <p className="italic text-muted-foreground">
-                {'"'}Schneider transformed how we manage our property
+                {'"'}ServiceFlow transformed how we manage our property
                 maintenance. The realtime tracking and instant dispatch have
                 saved us countless hours.{'"'}
               </p>
@@ -153,7 +198,7 @@ export default function SignupPage() {
       </div>
 
       {/* Right Side - Form */}
-      <div className="flex w-full flex-col justify-center px-4 py-12 sm:px-6 lg:w-1/2 lg:px-8">
+      <div className="flex w-full flex-col justify-center px-4 py-12 sm:px-6 lg:w-1/2 lg:px-8 bg-background">
         <div className="mx-auto w-full max-w-md">
           {/* Logo */}
           <motion.div
@@ -166,7 +211,7 @@ export default function SignupPage() {
                 <Zap className="h-6 w-6 text-primary-foreground" />
               </div>
               <span className="text-xl font-bold text-foreground">
-                Schneider
+                ServiceFlow
               </span>
             </Link>
           </motion.div>
@@ -219,10 +264,22 @@ export default function SignupPage() {
             </h1>
             <p className="mt-2 text-muted-foreground">
               {step === 1
-                ? "Select how you want to use Schneider"
+                ? "Select how you want to use ServiceFlow"
                 : "Fill in your details to get started"}
             </p>
           </motion.div>
+
+          {/* Error Message banner */}
+          {errorMessage && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-4 flex items-center gap-2.5 rounded-xl border border-destructive/20 bg-destructive/10 p-3.5 text-sm text-destructive"
+            >
+              <AlertTriangle className="h-5 w-5 shrink-0" />
+              <span>{errorMessage}</span>
+            </motion.div>
+          )}
 
           {/* Form */}
           <motion.form
@@ -231,7 +288,7 @@ export default function SignupPage() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.2 }}
             onSubmit={handleSubmit}
-            className="mt-8 space-y-6"
+            className="mt-6 space-y-6"
           >
             {step === 1 ? (
               <div className="space-y-3">
@@ -320,6 +377,30 @@ export default function SignupPage() {
                   </div>
                 </div>
 
+                {accountType === "technician" && (
+                  <div>
+                    <Label htmlFor="specialty">Technician Service Specialty</Label>
+                    <div className="relative mt-2">
+                      <Wrench className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                      <select
+                        id="specialty"
+                        value={specialty}
+                        onChange={(e) => setSpecialty(e.target.value)}
+                        className="w-full rounded-md border border-input bg-secondary/50 h-10 px-10 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-foreground appearance-none"
+                        required
+                      >
+                        <option value="" disabled className="bg-background text-muted-foreground">Select a Specialty</option>
+                        <option value="Electricity" className="bg-background text-foreground">Electricity</option>
+                        <option value="Plumber" className="bg-background text-foreground">Plumber</option>
+                        <option value="HVAC" className="bg-background text-foreground">HVAC Maintenance</option>
+                        <option value="Appliance Repair" className="bg-background text-foreground">Appliance Repair</option>
+                        <option value="General Maintenance" className="bg-background text-foreground">General Maintenance</option>
+                        <option value="Industrial Maintenance" className="bg-background text-foreground">Industrial Maintenance</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <Label htmlFor="password">Password</Label>
                   <div className="relative mt-2">
@@ -347,10 +428,27 @@ export default function SignupPage() {
                       )}
                     </button>
                   </div>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Must be at least 8 characters with one uppercase and one
-                    number
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Must be at least 8 characters
                   </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <div className="relative mt-2">
+                    <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      id="confirmPassword"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Confirm your password"
+                      value={formData.confirmPassword}
+                      onChange={(e) =>
+                        updateFormData("confirmPassword", e.target.value)
+                      }
+                      className="bg-secondary/50 pl-10 pr-10"
+                      required
+                    />
+                  </div>
                 </div>
               </div>
             )}
@@ -369,7 +467,7 @@ export default function SignupPage() {
               <Button
                 type="submit"
                 className={cn("gap-2 glow-blue", step === 1 ? "w-full" : "flex-1")}
-                disabled={isLoading || (step === 1 && !accountType)}
+                disabled={isLoading || (step === 1 && !accountType) || (step === 2 && accountType === "technician" && !specialty)}
               >
                 {isLoading ? (
                   <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
@@ -402,14 +500,10 @@ export default function SignupPage() {
                 </div>
 
                 {/* Social Login */}
-                <div className="grid grid-cols-2 gap-4">
-                  <Button variant="outline" type="button" className="gap-2">
+                <div className="grid grid-cols-1">
+                  <Button variant="outline" type="button" className="gap-2 w-full">
                     <Chrome className="h-5 w-5" />
                     Google
-                  </Button>
-                  <Button variant="outline" type="button" className="gap-2">
-                    <Apple className="h-5 w-5" />
-                    Apple
                   </Button>
                 </div>
               </>
@@ -450,3 +544,4 @@ export default function SignupPage() {
     </div>
   )
 }
+

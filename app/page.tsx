@@ -1,6 +1,6 @@
-"use client"
+﻿"use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import Link from "next/link"
 import {
@@ -12,67 +12,61 @@ import {
   Thermometer,
   Droplets,
   Plug,
+  Cog,
+  AlertTriangle,
   ArrowRight,
+  Play,
   Check,
   Star,
   Users,
   Activity,
   TrendingUp,
-  BarChart3,
-  Headphones,
-  Mail,
-  Phone,
-  Send,
-  Menu,
-  X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import ScooterRunway from "@/components/ScooterRunway"
+
+const iconMap = {
+  Thermometer: Thermometer,
+  Droplets: Droplets,
+  Plug: Plug,
+  Wrench: Wrench,
+}
+
 
 const fadeInUp = {
-  initial: { opacity: 0, y: 16 },
+  initial: { opacity: 0, y: 20 },
   animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.4, ease: "easeOut" },
+  transition: { duration: 0.5 },
 }
 
 const staggerContainer = {
   animate: {
     transition: {
-      staggerChildren: 0.08,
+      staggerChildren: 0.1,
     },
   },
 }
 
 // Navbar Component
 function Navbar() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-
   return (
     <motion.nav
-      initial={{ opacity: 0, y: -10 }}
+      initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
       className="fixed top-0 left-0 right-0 z-50 glass"
     >
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
+          <div className="flex items-center gap-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary glow-blue">
               <Zap className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="text-lg font-semibold text-foreground tracking-tight">
-              Schneider
+            <span className="text-lg font-semibold text-foreground">
+              ServiceFlow
             </span>
-          </Link>
+          </div>
 
-          {/* Desktop Nav */}
           <div className="hidden items-center gap-8 md:flex">
-            <Link
-              href="#features"
-              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Features
-            </Link>
             <Link
               href="#services"
               className="text-sm text-muted-foreground transition-colors hover:text-foreground"
@@ -80,80 +74,85 @@ function Navbar() {
               Services
             </Link>
             <Link
+              href="#features"
+              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Features
+            </Link>
+            <Link
+              href="#testimonials"
+              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Testimonials
+            </Link>
+            <Link
               href="#pricing"
               className="text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
               Pricing
             </Link>
-            <Link
-              href="#contact"
-              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Contact Us
-            </Link>
           </div>
 
-          {/* Desktop CTA */}
-          <div className="hidden items-center gap-3 md:flex">
+          <div className="flex items-center gap-3">
             <Link href="/login">
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+              <Button variant="ghost" size="sm">
                 Sign In
               </Button>
             </Link>
-            <Link href="/admin">
-              <Button size="sm" className="bg-primary hover:bg-primary/90">
-                Dashboard
-              </Button>
-            </Link>
+            {/* Replace Link with auth-guarded button */}
+            <Button
+              size="sm"
+              className="glow-blue"
+              onClick={() => {
+                const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+                if (token) {
+                  window.location.href = '/booking';
+                } else {
+                  window.location.href = `/login?redirect=/booking&message=first%20u%20have%20to%20login`;
+                }
+              }}
+            >
+              Book Service
+            </Button>
           </div>
-
-          {/* Mobile Menu Button */}
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 text-muted-foreground hover:text-foreground"
-          >
-            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
         </div>
-
-        {/* Mobile Menu */}
-        {mobileMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="md:hidden border-t border-border py-4"
-          >
-            <div className="flex flex-col gap-4">
-              <Link href="#features" className="text-sm text-muted-foreground hover:text-foreground px-2">Features</Link>
-              <Link href="#services" className="text-sm text-muted-foreground hover:text-foreground px-2">Services</Link>
-              <Link href="#pricing" className="text-sm text-muted-foreground hover:text-foreground px-2">Pricing</Link>
-              <Link href="#contact" className="text-sm text-muted-foreground hover:text-foreground px-2">Contact Us</Link>
-              <div className="flex gap-3 pt-2 px-2">
-                <Link href="/login" className="flex-1">
-                  <Button variant="outline" size="sm" className="w-full">Sign In</Button>
-                </Link>
-                <Link href="/admin" className="flex-1">
-                  <Button size="sm" className="w-full">Dashboard</Button>
-                </Link>
-              </div>
-            </div>
-          </motion.div>
-        )}
       </div>
     </motion.nav>
   )
 }
 
 // Hero Section
-function HeroSection() {
-  return (
-    <section className="relative min-h-screen pt-16">
-      {/* Subtle Background */}
-      <div className="absolute inset-0 gradient-mesh" />
+interface HeroSectionProps {
+  stats: {
+    online_technicians: number
+    completed_jobs: number
+    average_rating: number
+    dispatch_feed: Array<{
+      name: string
+      service: string
+      status: string
+      time: string
+      icon: string
+      color: string
+    }>
+  }
+}
 
-      <div className="relative mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
-        <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
+// Hero Section
+function HeroSection({ stats }: HeroSectionProps) {
+  return (
+    <section className="relative min-h-screen overflow-hidden pt-16">
+        <div className="landing-bg" />
+      {/* Background Effects */}
+      <div className="absolute inset-0 gradient-mesh" />
+      <div className="absolute inset-0 grid-pattern" />
+
+      {/* Animated Orbs */}
+      <div className="absolute left-1/4 top-1/4 h-96 w-96 rounded-full bg-primary/10 blur-3xl" />
+      <div className="absolute bottom-1/4 right-1/4 h-96 w-96 rounded-full bg-accent/10 blur-3xl" />
+
+      <div className="relative mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8">
+        <div className="grid items-center gap-12 lg:grid-cols-2">
           {/* Left Content */}
           <motion.div
             initial="initial"
@@ -161,133 +160,170 @@ function HeroSection() {
             variants={staggerContainer}
             className="text-center lg:text-left"
           >
-            {/* Badge */}
+            {/* Live Badge */}
             <motion.div variants={fadeInUp} className="mb-6 inline-flex">
-              <div className="badge-primary flex items-center gap-2">
-                <Zap className="h-3.5 w-3.5" />
-                <span>AI-powered Service Platform</span>
+              <div className="flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
+                </span>
+                <span className="text-sm font-medium text-primary">
+                  {stats.online_technicians.toLocaleString()} technicians online now
+                </span>
               </div>
             </motion.div>
 
-            {/* Headline */}
             <motion.h1
               variants={fadeInUp}
-              className="text-balance text-4xl font-semibold leading-tight tracking-tight text-foreground sm:text-5xl lg:text-[3.25rem]"
+              className="text-balance text-4xl font-bold leading-tight tracking-tight text-foreground sm:text-5xl lg:text-6xl"
             >
-              Build Stronger Customer Relationships{" "}
-              <span className="text-primary">With Simplicity.</span>
+              Realtime Smart Service{" "}
+              <span className="text-glow-blue text-primary">
+                Dispatch Platform
+              </span>
             </motion.h1>
 
-            {/* Description */}
             <motion.p
               variants={fadeInUp}
-              className="mt-6 text-pretty text-base text-muted-foreground sm:text-lg leading-relaxed max-w-xl mx-auto lg:mx-0"
+              className="mt-6 text-pretty text-lg text-muted-foreground sm:text-xl"
             >
-              Schneider Smart Service Platform helps businesses manage technicians, automate dispatching, track performance, and scale operations with a clean and intelligent service management experience.
+              Book trusted technicians for home, commercial, and industrial
+              services with AI-powered realtime tracking and dispatching.
             </motion.p>
+
+            {/* Stats Row */}
+            <motion.div
+              variants={fadeInUp}
+              className="mt-8 flex flex-wrap justify-center gap-8 lg:justify-start"
+            >
+              <div className="text-center">
+                <div className="text-3xl font-bold text-foreground">
+                  {(stats.completed_jobs / 1000).toFixed(0)}K+
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  Jobs Completed
+                </div>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-foreground">
+                  {stats.average_rating.toFixed(2)}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  Average Rating
+                </div>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-foreground">
+                  {"<"}12min
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  Avg Response Time
+                </div>
+              </div>
+            </motion.div>
 
             {/* CTA Buttons */}
             <motion.div
               variants={fadeInUp}
-              className="mt-8 flex flex-wrap justify-center gap-3 lg:justify-start"
+              className="mt-10 flex flex-wrap justify-center gap-4 lg:justify-start"
             >
-              <Link href="/signup">
-                <Button size="lg" className="bg-primary hover:bg-primary/90 h-12 px-6">
-                  Get Started
-                  <ArrowRight className="ml-2 h-4 w-4" />
+              <Link href="/booking">
+                <Button size="lg" className="gap-2 glow-blue">
+                  Book Service
+                  <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
-              <Link href="/login">
-                <Button size="lg" variant="outline" className="h-12 px-6 border-border hover:bg-secondary">
-                  Login
+              <Link href="/admin">
+                <Button size="lg" variant="outline" className="gap-2">
+                  <Play className="h-4 w-4" />
+                  Explore Platform
                 </Button>
               </Link>
-            </motion.div>
-
-            {/* Trust Indicators */}
-            <motion.div
-              variants={fadeInUp}
-              className="mt-10 flex flex-wrap justify-center gap-8 lg:justify-start"
-            >
-              {[
-                { value: "50K+", label: "Jobs Completed" },
-                { value: "4.9", label: "Average Rating" },
-                { value: "<15min", label: "Response Time" },
-              ].map((stat, i) => (
-                <div key={i} className="text-center lg:text-left">
-                  <div className="text-2xl font-semibold text-foreground">{stat.value}</div>
-                  <div className="text-sm text-muted-foreground">{stat.label}</div>
-                </div>
-              ))}
             </motion.div>
           </motion.div>
 
           {/* Right Content - Dashboard Preview */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8, delay: 0.3 }}
             className="relative"
           >
-            <div className="card-premium rounded-xl p-1">
-              <div className="rounded-lg bg-card p-5">
-                {/* Mini Dashboard Header */}
+            <div className="glass-card relative overflow-hidden rounded-2xl p-1">
+              <div className="rounded-xl bg-card p-6">
+                {/* Mini Dashboard */}
                 <div className="mb-4 flex items-center justify-between">
-                  <h3 className="text-sm font-medium text-foreground">
+                  <h3 className="text-sm font-semibold text-foreground">
                     Live Dispatch Feed
                   </h3>
                   <div className="flex items-center gap-2">
-                    <span className="status-dot status-online pulse-soft" />
-                    <span className="text-xs text-success font-medium">Live</span>
+                    <span className="relative flex h-2 w-2">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
+                      <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
+                    </span>
+                    <span className="text-xs text-success">Live</span>
                   </div>
                 </div>
 
                 {/* Activity Items */}
-                <div className="space-y-2.5">
-                  {[
-                    { name: "John D.", service: "HVAC Repair", status: "En Route", time: "2 min", icon: Thermometer },
-                    { name: "Sarah M.", service: "Plumbing", status: "On Site", time: "12 min", icon: Droplets },
-                    { name: "Mike R.", service: "Electrical", status: "Completed", time: "Just now", icon: Plug },
-                  ].map((item, i) => (
-                    <motion.div
-                      key={i}
-                      initial={{ opacity: 0, x: 10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.4 + i * 0.1 }}
-                      className="flex items-center gap-3 rounded-lg bg-secondary/50 p-3"
-                    >
-                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary text-primary">
-                        <item.icon className="h-4 w-4" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-foreground">{item.name}</span>
-                          <span className="text-xs text-muted-foreground">{item.time}</span>
+                <div className="space-y-3">
+                  {stats.dispatch_feed.map((item, i) => {
+                    const IconComponent = iconMap[item.icon as keyof typeof iconMap] || Wrench
+                    return (
+                      <motion.div
+                        key={i}
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.5 + i * 0.1 }}
+                        className="flex items-center gap-3 rounded-lg bg-secondary/50 p-3"
+                      >
+                        <div
+                          className={`flex h-10 w-10 items-center justify-center rounded-lg bg-secondary ${item.color}`}
+                        >
+                          <IconComponent className="h-5 w-5" />
                         </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground">{item.service}</span>
-                          <span className={`text-xs font-medium ${
-                            item.status === "Completed" ? "text-success" : 
-                            item.status === "On Site" ? "text-accent" : "text-warning"
-                          }`}>
-                            {item.status}
-                          </span>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-foreground">
+                              {item.name}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {item.time}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-muted-foreground">
+                              {item.service}
+                            </span>
+                            <span
+                              className={`text-xs ${item.color}`}
+                            >
+                              {item.status}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    </motion.div>
-                  ))}
+                      </motion.div>
+                    )
+                  })}
                 </div>
 
                 {/* Quick Stats */}
-                <div className="mt-4 grid grid-cols-3 gap-2.5">
+                <div className="mt-4 grid grid-cols-3 gap-3">
                   {[
-                    { label: "Active", value: "128" },
-                    { label: "Pending", value: "47" },
-                    { label: "Today", value: "892" },
+                    { label: "Active", value: "128", trend: "+12%" },
+                    { label: "Pending", value: "47", trend: "-5%" },
+                    { label: "Today", value: "892", trend: "+23%" },
                   ].map((stat, i) => (
-                    <div key={i} className="rounded-lg bg-secondary/30 p-3 text-center">
-                      <div className="text-lg font-semibold text-foreground">{stat.value}</div>
-                      <div className="text-xs text-muted-foreground">{stat.label}</div>
+                    <div
+                      key={i}
+                      className="rounded-lg bg-secondary/30 p-3 text-center"
+                    >
+                      <div className="text-lg font-bold text-foreground">
+                        {stat.value}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {stat.label}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -296,128 +332,49 @@ function HeroSection() {
 
             {/* Floating Cards */}
             <motion.div
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6 }}
-              className="absolute -left-4 top-1/4 hidden lg:block"
+              transition={{ delay: 0.8 }}
+              className="floating absolute -left-8 top-1/4 rounded-lg bg-card p-3 shadow-xl"
             >
-              <div className="card-premium rounded-lg p-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-success/10 text-success">
-                    <Check className="h-4 w-4" />
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-success/20 text-success">
+                  <Check className="h-4 w-4" />
+                </div>
+                <div>
+                  <div className="text-xs font-medium text-foreground">
+                    Job Completed
                   </div>
-                  <div>
-                    <div className="text-xs font-medium text-foreground">Job Completed</div>
-                    <div className="text-xs text-muted-foreground">AC Repair - $285</div>
+                  <div className="text-xs text-muted-foreground">
+                    AC Repair - $285
                   </div>
                 </div>
               </div>
             </motion.div>
 
             <motion.div
-              initial={{ opacity: 0, y: -10 }}
+              initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8 }}
-              className="absolute -right-4 bottom-1/4 hidden lg:block"
+              transition={{ delay: 1 }}
+              className="floating absolute -right-4 bottom-1/4 rounded-lg bg-card p-3 shadow-xl"
+              style={{ animationDelay: "1s" }}
             >
-              <div className="card-premium rounded-lg p-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
-                    <MapPin className="h-4 w-4" />
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-primary">
+                  <MapPin className="h-4 w-4" />
+                </div>
+                <div>
+                  <div className="text-xs font-medium text-foreground">
+                    Tech Arriving
                   </div>
-                  <div>
-                    <div className="text-xs font-medium text-foreground">Tech Arriving</div>
-                    <div className="text-xs text-muted-foreground">ETA: 8 minutes</div>
+                  <div className="text-xs text-muted-foreground">
+                    ETA: 8 minutes
                   </div>
                 </div>
               </div>
             </motion.div>
           </motion.div>
         </div>
-      </div>
-    </section>
-  )
-}
-
-// Features Section
-function FeaturesSection() {
-  const features = [
-    {
-      icon: Users,
-      title: "Lead Management",
-      description: "Efficiently track and manage all your service requests and customer leads in one place.",
-    },
-    {
-      icon: BarChart3,
-      title: "Sales Analytics",
-      description: "Gain insights into your service performance with comprehensive analytics and reporting.",
-    },
-    {
-      icon: Zap,
-      title: "Workflow Automation",
-      description: "Automate dispatching, scheduling, and follow-ups to save time and reduce errors.",
-    },
-    {
-      icon: Users,
-      title: "Team Collaboration",
-      description: "Keep your technicians and office staff connected with real-time communication tools.",
-    },
-    {
-      icon: Activity,
-      title: "Real-time Dashboard",
-      description: "Monitor all operations live with our intuitive command center dashboard.",
-    },
-    {
-      icon: TrendingUp,
-      title: "Smart Reports",
-      description: "Generate detailed reports to track growth, efficiency, and customer satisfaction.",
-    },
-  ]
-
-  return (
-    <section id="features" className="relative py-20 lg:py-24">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.4 }}
-          className="text-center mb-12 lg:mb-16"
-        >
-          <h2 className="text-2xl font-semibold text-foreground sm:text-3xl lg:text-4xl">
-            Everything You Need to Manage{" "}
-            <span className="text-primary">Customers Efficiently</span>
-          </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-            Powerful features designed to streamline your service operations and delight your customers.
-          </p>
-        </motion.div>
-
-        <motion.div
-          initial="initial"
-          whileInView="animate"
-          viewport={{ once: true }}
-          variants={staggerContainer}
-          className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
-        >
-          {features.map((feature, i) => (
-            <motion.div
-              key={i}
-              variants={fadeInUp}
-              className="card-premium hover-lift group cursor-pointer rounded-xl p-6 transition-all"
-            >
-              <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <feature.icon className="h-5 w-5" />
-              </div>
-              <h3 className="mb-2 text-base font-medium text-foreground">
-                {feature.title}
-              </h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {feature.description}
-              </p>
-            </motion.div>
-          ))}
-        </motion.div>
       </div>
     </section>
   )
@@ -426,190 +383,456 @@ function FeaturesSection() {
 // Services Section
 function ServicesSection() {
   const services = [
-    { icon: Thermometer, title: "HVAC Services", description: "Installation, repair, and maintenance for all HVAC systems." },
-    { icon: Droplets, title: "Plumbing", description: "Expert plumbing solutions for residential and commercial properties." },
-    { icon: Plug, title: "Electrical", description: "Licensed electricians for all your electrical needs." },
-    { icon: Wrench, title: "Appliance Repair", description: "Fast and reliable repair services for all major appliances." },
+    {
+      icon: Thermometer,
+      title: "HVAC Services",
+      description:
+        "Heating, ventilation, and air conditioning installation, repair, and maintenance.",
+      color: "text-accent",
+      bgColor: "bg-accent/10",
+    },
+    {
+      icon: Droplets,
+      title: "Plumbing",
+      description:
+        "Expert plumbing solutions for residential and commercial properties.",
+      color: "text-primary",
+      bgColor: "bg-primary/10",
+    },
+    {
+      icon: Plug,
+      title: "Electrical",
+      description:
+        "Licensed electricians for all your electrical needs and emergencies.",
+      color: "text-warning",
+      bgColor: "bg-warning/10",
+    },
+    {
+      icon: Wrench,
+      title: "Appliance Repair",
+      description:
+        "Fast and reliable repair services for all major appliances.",
+      color: "text-success",
+      bgColor: "bg-success/10",
+    },
+    {
+      icon: Cog,
+      title: "Industrial Maintenance",
+      description:
+        "Comprehensive industrial equipment maintenance and repair services.",
+      color: "text-chart-3",
+      bgColor: "bg-chart-3/10",
+    },
+    {
+      icon: AlertTriangle,
+      title: "Emergency Services",
+      description:
+        "24/7 emergency technical services with rapid response times.",
+      color: "text-destructive",
+      bgColor: "bg-destructive/10",
+    },
   ]
 
   return (
-    <section id="services" className="relative py-20 lg:py-24 section-alt">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+    <section id="services" className="relative py-24">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <motion.div
-          initial={{ opacity: 0, y: 16 }}
+          initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.4 }}
-          className="text-center mb-12"
+          className="text-center"
         >
-          <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">
+          <h2 className="text-3xl font-bold text-foreground sm:text-4xl">
             Our Services
           </h2>
-          <p className="mx-auto mt-4 max-w-xl text-muted-foreground">
-            Professional technical services for home, commercial, and industrial needs.
+          <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
+            Comprehensive technical services for home, commercial, and
+            industrial needs with AI-powered dispatch and realtime tracking.
           </p>
         </motion.div>
 
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <motion.div
+          initial="initial"
+          whileInView="animate"
+          viewport={{ once: true }}
+          variants={staggerContainer}
+          className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
+        >
           {services.map((service, i) => (
             <motion.div
               key={i}
-              initial={{ opacity: 0, y: 16 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.08 }}
-              className="card-premium hover-lift group cursor-pointer rounded-xl p-5 bg-card text-center"
+              variants={fadeInUp}
+              whileHover={{ y: -5, scale: 1.02 }}
+              className="group glass-card cursor-pointer rounded-xl p-6 transition-all hover:border-primary/30"
             >
-              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <div
+                className={`mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg ${service.bgColor} ${service.color}`}
+              >
                 <service.icon className="h-6 w-6" />
               </div>
-              <h3 className="mb-2 text-sm font-medium text-foreground">{service.title}</h3>
-              <p className="text-xs text-muted-foreground">{service.description}</p>
+              <h3 className="mb-2 text-lg font-semibold text-foreground">
+                {service.title}
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                {service.description}
+              </p>
+              <div className="mt-4 flex items-center gap-2 text-sm text-primary opacity-0 transition-opacity group-hover:opacity-100">
+                <span>Book Now</span>
+                <ArrowRight className="h-4 w-4" />
+              </div>
             </motion.div>
           ))}
+        </motion.div>
+      </div>
+    </section>
+  )
+}
+
+interface FeaturesSectionProps {
+  stats: {
+    online_technicians: number
+    completed_jobs: number
+    average_rating: number
+  }
+}
+
+// Features Section
+function FeaturesSection({ stats }: FeaturesSectionProps) {
+  const features = [
+    {
+      icon: Activity,
+      title: "Realtime Tracking",
+      description:
+        "Track your technician in real-time with live GPS updates and ETA notifications.",
+    },
+    {
+      icon: Zap,
+      title: "AI-Powered Dispatch",
+      description:
+        "Smart matching algorithm assigns the best technician based on skills, location, and availability.",
+    },
+    {
+      icon: Shield,
+      title: "Verified Professionals",
+      description:
+        "All technicians are background-checked, licensed, and insured for your peace of mind.",
+    },
+    {
+      icon: Clock,
+      title: "24/7 Availability",
+      description:
+        "Round-the-clock service availability with priority emergency response.",
+    },
+  ]
+
+  return (
+    <section id="features" className="relative py-24">
+      <div className="absolute inset-0 gradient-radial opacity-50" />
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="grid items-center gap-16 lg:grid-cols-2">
+          <motion.div
+            initial={{ opacity: 0, x: -50 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+          >
+            <h2 className="text-3xl font-bold text-foreground sm:text-4xl">
+              Why Choose Our Platform
+            </h2>
+            <p className="mt-4 text-muted-foreground">
+              Experience the future of service booking with our cutting-edge
+              technology and premium service quality.
+            </p>
+
+            <div className="mt-10 space-y-6">
+              {features.map((feature, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, x: -20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.1 }}
+                  className="flex gap-4"
+                >
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <feature.icon className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground">
+                      {feature.title}
+                    </h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {feature.description}
+                    </p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* Analytics Preview */}
+          <motion.div
+            initial={{ opacity: 0, x: 50 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            className="glass-card rounded-2xl p-6"
+          >
+            <div className="mb-6 flex items-center justify-between">
+              <h3 className="font-semibold text-foreground">
+                Platform Analytics
+              </h3>
+              <div className="flex items-center gap-2 text-xs text-success">
+                <TrendingUp className="h-4 w-4" />
+                <span>+24% this month</span>
+              </div>
+            </div>
+
+            {/* Chart Placeholder */}
+            <div className="mb-6 h-48 rounded-lg bg-secondary/30 p-4">
+              <div className="flex h-full items-end justify-between gap-2">
+                {[40, 65, 45, 80, 55, 90, 70, 85, 60, 95, 75, 88].map(
+                  (h, i) => (
+                    <motion.div
+                      key={i}
+                      initial={{ height: 0 }}
+                      whileInView={{ height: `${h}%` }}
+                      viewport={{ once: true }}
+                      transition={{ delay: i * 0.05, duration: 0.5 }}
+                      className="w-full rounded-t bg-gradient-to-t from-primary/50 to-primary"
+                    />
+                  )
+                )}
+              </div>
+            </div>
+
+            {/* Stats Grid */}
+            <div className="grid grid-cols-2 gap-4">
+              {[
+                { label: "Total Jobs", value: stats.completed_jobs.toLocaleString(), change: "+12%" },
+                { label: "Active Users", value: (stats.online_technicians * 3).toLocaleString(), change: "+8%" },
+                { label: "Avg Rating", value: stats.average_rating.toFixed(2), change: "+0.3" },
+                { label: "Response Time", value: "12 min", change: "-15%" },
+              ].map((stat, i) => (
+                <div key={i} className="rounded-lg bg-secondary/30 p-4">
+                  <div className="text-xs text-muted-foreground">
+                    {stat.label}
+                  </div>
+                  <div className="mt-1 flex items-baseline gap-2">
+                    <span className="text-xl font-bold text-foreground">
+                      {stat.value}
+                    </span>
+                    <span className="text-xs text-success">{stat.change}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
         </div>
       </div>
     </section>
   )
 }
 
-// Contact Section
-function ContactSection() {
-  const [formData, setFormData] = useState({ name: "", email: "", message: "" })
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    // Handle form submission
-    console.log("Form submitted:", formData)
-  }
+// Testimonials Section
+function TestimonialsSection() {
+  const testimonials = [
+    {
+      name: "Jessica Martinez",
+      role: "Homeowner",
+      content:
+        "The realtime tracking feature is incredible. I knew exactly when the technician would arrive and could follow their progress. The repair was quick and professional.",
+      rating: 5,
+    },
+    {
+      name: "David Chen",
+      role: "Property Manager",
+      content:
+        "Managing multiple properties used to be a nightmare. Now I can dispatch technicians to any location instantly and track all jobs from one dashboard.",
+      rating: 5,
+    },
+    {
+      name: "Sarah Thompson",
+      role: "Business Owner",
+      content:
+        "The emergency response time is unmatched. When our HVAC system failed during a heatwave, they had a technician on-site within 20 minutes.",
+      rating: 5,
+    },
+  ]
 
   return (
-    <section id="contact" className="relative py-20 lg:py-24">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <div className="grid gap-12 lg:grid-cols-2 lg:gap-16">
-          {/* Left - Info */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.4 }}
-          >
-            <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">
-              Get in Touch
-            </h2>
-            <p className="mt-4 text-muted-foreground leading-relaxed">
-              Have questions about our platform? We&apos;d love to hear from you. Send us a message and we&apos;ll respond as soon as possible.
-            </p>
+    <section id="testimonials" className="relative py-24">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="text-center"
+        >
+          <h2 className="text-3xl font-bold text-foreground sm:text-4xl">
+            What Our Customers Say
+          </h2>
+          <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
+            Join thousands of satisfied customers who trust our platform for
+            their service needs.
+          </p>
+        </motion.div>
 
-            <div className="mt-8 space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <Mail className="h-5 w-5" />
-                </div>
-                <div>
-                  <div className="text-sm font-medium text-foreground">Email</div>
-                  <div className="text-sm text-muted-foreground">support@schneider.com</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <Phone className="h-5 w-5" />
-                </div>
-                <div>
-                  <div className="text-sm font-medium text-foreground">Phone</div>
-                  <div className="text-sm text-muted-foreground">+1 (555) 123-4567</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <Headphones className="h-5 w-5" />
-                </div>
-                <div>
-                  <div className="text-sm font-medium text-foreground">Support</div>
-                  <div className="text-sm text-muted-foreground">24/7 Available</div>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Right - Form */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.4 }}
-          >
-            <form onSubmit={handleSubmit} className="card-premium rounded-xl p-6">
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-foreground mb-1.5">
-                    Name
-                  </label>
-                  <input
-                    type="text"
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="input-premium w-full"
-                    placeholder="Your name"
-                    required
+        <motion.div
+          initial="initial"
+          whileInView="animate"
+          viewport={{ once: true }}
+          variants={staggerContainer}
+          className="mt-16 grid gap-6 md:grid-cols-3"
+        >
+          {testimonials.map((testimonial, i) => (
+            <motion.div
+              key={i}
+              variants={fadeInUp}
+              className="glass-card rounded-xl p-6"
+            >
+              <div className="mb-4 flex items-center gap-1">
+                {Array.from({ length: testimonial.rating }).map((_, j) => (
+                  <Star
+                    key={j}
+                    className="h-4 w-4 fill-warning text-warning"
                   />
-                </div>
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-foreground mb-1.5">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    id="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="input-premium w-full"
-                    placeholder="your@email.com"
-                    required
-                  />
-                </div>
-                <div>
-                  <label htmlFor="message" className="block text-sm font-medium text-foreground mb-1.5">
-                    Message
-                  </label>
-                  <textarea
-                    id="message"
-                    rows={4}
-                    value={formData.message}
-                    onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                    className="input-premium w-full resize-none"
-                    placeholder="How can we help you?"
-                    required
-                  />
-                </div>
-                <Button type="submit" className="w-full bg-primary hover:bg-primary/90 h-11">
-                  Send Message
-                  <Send className="ml-2 h-4 w-4" />
-                </Button>
+                ))}
               </div>
-            </form>
-          </motion.div>
-        </div>
+              <p className="mb-6 text-muted-foreground">
+                {'"'}
+                {testimonial.content}
+                {'"'}
+              </p>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/20 text-primary">
+                  <Users className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="font-medium text-foreground">
+                    {testimonial.name}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    {testimonial.role}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </motion.div>
       </div>
     </section>
   )
+}
+
+// CTA Section
+function CTASection() {
+  const handleNavigate = (target: string) => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (token) {
+      window.location.href = target;
+    } else {
+      const redirectPath = target;
+      window.location.href = `/login?redirect=${redirectPath}&message=first%20u%20have%20to%20login`;
+    }
+  };
+
+  return (
+    <section className="relative py-24">
+      <div className="absolute inset-0 gradient-mesh" />
+      <div className="relative mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="glass-card rounded-3xl p-12"
+        >
+          <h2 className="text-3xl font-bold text-foreground sm:text-4xl">
+            Ready to Get Started?
+          </h2>
+          <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
+            Join thousands of satisfied customers and experience the future of
+            service booking today.
+          </p>
+          <div className="mt-8 flex flex-wrap justify-center gap-4">
+            <Button
+              size="lg"
+              className="gap-2 glow-blue"
+              onClick={() => handleNavigate('/booking')}
+            >
+              Book Your First Service
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={() => handleNavigate('/technician')}
+            >
+              Become a Technician
+            </Button>
+          </div>
+          <p className="mt-6 text-sm text-muted-foreground">
+            No credit card required. Start with a free consultation.
+          </p>
+        </motion.div>
+      </div>
+    </section>
+  );
 }
 
 // Footer
 function Footer() {
   return (
-    <footer className="border-t border-border py-12">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-              <Zap className="h-4 w-4 text-primary-foreground" />
+    <footer className="border-t border-border bg-card/50 py-12">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="grid gap-8 md:grid-cols-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
+                <Zap className="h-5 w-5 text-primary-foreground" />
+              </div>
+              <span className="text-lg font-semibold text-foreground">
+                ServiceFlow
+              </span>
             </div>
-            <span className="text-sm font-medium text-foreground">Schneider Smart Service</span>
+            <p className="mt-4 text-sm text-muted-foreground">
+              AI-powered realtime technician booking and dispatch platform for
+              home, commercial, and industrial services.
+            </p>
           </div>
-          <p className="text-sm text-muted-foreground">
-            &copy; {new Date().getFullYear()} Schneider. All rights reserved.
+
+          <div>
+            <h4 className="font-semibold text-foreground">Services</h4>
+            <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+              <li>HVAC Services</li>
+              <li>Plumbing</li>
+              <li>Electrical</li>
+              <li>Appliance Repair</li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="font-semibold text-foreground">Company</h4>
+            <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+              <li>About Us</li>
+              <li>Careers</li>
+              <li>Contact</li>
+              <li>Blog</li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="font-semibold text-foreground">Legal</h4>
+            <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+              <li>Privacy Policy</li>
+              <li>Terms of Service</li>
+              <li>Cookie Policy</li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="mt-12 border-t border-border pt-8 text-center text-sm text-muted-foreground">
+          <p>
+            &copy; {new Date().getFullYear()} ServiceFlow Smart Service Platform.
+            All rights reserved.
           </p>
         </div>
       </div>
@@ -617,16 +840,72 @@ function Footer() {
   )
 }
 
-// Main Page
+// Main Landing Page
 export default function LandingPage() {
+  const [stats, setStats] = useState({
+    online_technicians: 2847,
+    completed_jobs: 50000,
+    average_rating: 4.92,
+    dispatch_feed: [
+      {
+        name: "John D.",
+        service: "HVAC Repair",
+        status: "En Route",
+        time: "2 min ago",
+        icon: "Thermometer",
+        color: "text-warning",
+      },
+      {
+        name: "Sarah M.",
+        service: "Plumbing",
+        status: "On Site",
+        time: "12 min ago",
+        icon: "Droplets",
+        color: "text-accent",
+      },
+      {
+        name: "Mike R.",
+        service: "Electrical",
+        status: "Completed",
+        time: "Just now",
+        icon: "Plug",
+        color: "text-success",
+      },
+    ]
+  })
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const res = await fetch("http://localhost:8000/api/v1/landing-stats")
+        if (res.ok) {
+          const data = await res.json()
+          setStats(data)
+        }
+      } catch (err) {
+        // Fall back silently to beautiful default mock stats
+        console.warn("Failed to fetch landing stats from backend, using fallbacks.", err)
+      }
+    }
+    fetchStats()
+    // Poll every 10 seconds for real-time dispatch updates!
+    const interval = setInterval(fetchStats, 10000)
+    return () => clearInterval(interval)
+  }, [])
+
   return (
-    <main className="min-h-screen bg-background">
+    <main className="min-h-screen bg-background noise-overlay">
       <Navbar />
-      <HeroSection />
-      <FeaturesSection />
+      <HeroSection stats={stats} />
+      <ScooterRunway direction="ltr" />
       <ServicesSection />
-      <ContactSection />
+      <FeaturesSection stats={stats} />
+      <TestimonialsSection />
+      <ScooterRunway direction="rtl" />
+      <CTASection />
       <Footer />
     </main>
   )
 }
+
+

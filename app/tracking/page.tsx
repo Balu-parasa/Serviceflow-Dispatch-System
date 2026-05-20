@@ -1,6 +1,6 @@
-"use client"
+﻿"use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { motion } from "framer-motion"
 import Link from "next/link"
 import {
@@ -17,9 +17,11 @@ import {
   Share2,
   AlertTriangle,
   Thermometer,
+  ArrowLeft,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import api from "@/lib/api"
 
 const technicianData = {
   name: "John Mitchell",
@@ -52,6 +54,158 @@ const trackingSteps = [
 export default function TrackingPage() {
   const [currentStep, setCurrentStep] = useState(2)
   const [eta, setEta] = useState(8)
+  const [isAuthLoading, setIsAuthLoading] = useState(true)
+  const [booking, setBooking] = useState<any>(null)
+  const [techLocation, setTechLocation] = useState<any>(null)
+  const [destination, setDestination] = useState<any>(null)
+  const [loadingBooking, setLoadingBooking] = useState(false)
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const token = localStorage.getItem("token")
+        if (!token) {
+          window.location.href = "/login?redirect=/tracking&message=first%20u%20have%20to%20login"
+          return
+        }
+        const response = await api.get("/auth/me")
+        if (response.data?.user) {
+          setIsAuthLoading(false)
+        } else {
+          localStorage.removeItem("token")
+          document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;"
+          window.location.href = "/login?redirect=/tracking&message=first%20u%20have%20to%20login"
+        }
+      } catch (err) {
+        console.error("Auth check failed on tracking page:", err)
+        localStorage.removeItem("token")
+        document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;"
+        window.location.href = "/login?redirect=/tracking&message=first%20u%20have%20to%20login"
+      }
+    }
+    checkAuth()
+  }, [])
+
+  useEffect(() => {
+    const fetchBookingTracking = async () => {
+      const searchParams = new URLSearchParams(window.location.search)
+      const bookingId = searchParams.get("booking_id")
+      if (!bookingId) return
+
+      setLoadingBooking(true)
+      try {
+        const response = await api.get(`/bookings/${bookingId}/tracking`)
+        if (response.data?.booking) {
+          setBooking(response.data.booking)
+          if (response.data.technician_location) {
+            setTechLocation(response.data.technician_location)
+          }
+          if (response.data.destination) {
+            setDestination(response.data.destination)
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch booking tracking info:", err)
+      } finally {
+        setLoadingBooking(false)
+      }
+    }
+
+    if (!isAuthLoading) {
+      fetchBookingTracking()
+    }
+  }, [isAuthLoading])
+
+  const resolvedTech = useMemo(() => {
+    if (booking?.technician) {
+      const profile = booking.technician.technician_profile || {}
+      return {
+        name: booking.technician.name || "Assigned Expert",
+        specialty: profile.specialty || booking.service?.name || "Technician",
+        rating: profile.rating || 4.9,
+        totalJobs: profile.total_jobs || 150,
+        phone: booking.technician.phone || "(555) 123-4567",
+        verified: profile.verified !== false,
+        vehicle: profile.vehicle || "White Ford Transit",
+        licensePlate: profile.license_plate || "ABC 1234",
+      }
+    }
+    return technicianData
+  }, [booking])
+
+  const resolvedJob = useMemo(() => {
+    if (booking) {
+      return {
+        id: booking.reference || `JOB-${booking.id}`,
+        service: booking.service?.name || "General Service",
+        address: `${booking.address || "123 Main St"}, ${booking.city || "San Francisco"}, CA ${booking.zip_code || "94102"}`,
+        scheduledTime: booking.is_emergency
+          ? "Immediate Dispatch"
+          : `${booking.scheduled_date || "Today"}, ${booking.specific_time || "9:00 AM"}`,
+        estimatedCost: booking.estimated_cost ? `$${booking.estimated_cost}` : "$89 - $150",
+      }
+    }
+    return jobDetails
+  }, [booking])
+
+  const resolvedStep = useMemo(() => {
+    if (!booking) return currentStep
+    const status = booking.status
+    switch (status) {
+      case "pending":
+        return 0
+      case "accepted":
+        return 1
+      case "en_route":
+        return 2
+      case "arriving":
+        return 3
+      case "on_site":
+        return 4
+      case "completed":
+        return 5
+      default:
+        return 2
+    }
+  }, [booking, currentStep])
+
+  const resolvedTrackingSteps = useMemo(() => {
+    const steps = [
+      { id: "confirmed", label: "Booking Confirmed", time: "9:45 AM" },
+      { id: "assigned", label: "Technician Assigned", time: "9:48 AM" },
+      { id: "en-route", label: "En Route", time: "10:02 AM" },
+      { id: "arriving", label: "Arriving Soon", time: null },
+      { id: "on-site", label: "On Site", time: null },
+      { id: "completed", label: "Completed", time: null },
+    ]
+    if (booking) {
+      const formatTime = (isoString: string | undefined) => {
+        if (!isoString) return null
+        try {
+          const date = new Date(isoString)
+          return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+        } catch (e) {
+          return null
+        }
+      }
+      steps[0].time = formatTime(booking.timestamps?.created_at) || "9:45 AM"
+      steps[1].time = formatTime(booking.timestamps?.accepted_at || booking.timestamps?.assigned_at)
+      steps[2].time = formatTime(booking.timestamps?.en_route_at)
+      steps[3].time = formatTime(booking.timestamps?.started_at)
+      steps[5].time = formatTime(booking.timestamps?.completed_at)
+    }
+    return steps
+  }, [booking])
+
+  const resolvedEta = useMemo(() => {
+    if (techLocation && typeof techLocation.eta_minutes === "number") {
+      return techLocation.eta_minutes
+    }
+    if (booking && typeof booking.eta_minutes === "number") {
+      return booking.eta_minutes
+    }
+    return eta
+  }, [techLocation, booking, eta])
 
   // Simulate ETA countdown
   useEffect(() => {
@@ -69,21 +223,38 @@ export default function TrackingPage() {
     return () => clearInterval(interval)
   }, [])
 
+  if (isAuthLoading) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-background text-foreground">
+        <div className="text-center">
+          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          <p className="mt-4 text-sm text-muted-foreground">Verifying tracking authorization...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="glass fixed left-0 right-0 top-0 z-50">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <Link href="/" className="flex items-center gap-2">
+          <Link href="/customer" className="flex items-center gap-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary glow-blue">
               <Zap className="h-5 w-5 text-primary-foreground" />
             </div>
             <span className="text-lg font-semibold text-foreground">
-              Schneider
+              ServiceFlow
             </span>
           </Link>
 
           <div className="flex items-center gap-3">
+            <Link href="/customer">
+              <Button variant="ghost" size="sm" className="gap-2">
+                <ArrowLeft className="h-4 w-4" />
+                Back to Dashboard
+              </Button>
+            </Link>
             <Button variant="outline" size="sm" className="gap-2">
               <Share2 className="h-4 w-4" />
               Share
@@ -114,13 +285,13 @@ export default function TrackingPage() {
           </div>
 
           <h1 className="mt-4 text-3xl font-bold text-foreground">
-            {eta > 0
-              ? `Technician arriving in ${eta} minutes`
+            {resolvedEta > 0
+              ? `Technician arriving in ${resolvedEta} minutes`
               : "Technician is arriving!"}
           </h1>
 
           <p className="mt-2 text-muted-foreground">
-            {technicianData.name} is on the way to your location
+            {resolvedTech.name} is on the way to your location
           </p>
         </motion.div>
 
@@ -166,7 +337,7 @@ export default function TrackingPage() {
                       <span className="absolute inset-0 animate-ping rounded-full bg-primary opacity-75" />
                     </div>
                     <div className="absolute left-8 top-0 whitespace-nowrap rounded bg-card px-2 py-1 text-xs font-medium text-foreground shadow-lg">
-                      {technicianData.name}
+                      {resolvedTech.name}
                     </div>
                   </div>
                 </motion.div>
@@ -188,16 +359,16 @@ export default function TrackingPage() {
                     <Navigation className="h-5 w-5 text-primary" />
                     <div>
                       <div className="text-sm font-medium text-foreground">
-                        {technicianData.vehicle}
+                        {resolvedTech.vehicle}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        License: {technicianData.licensePlate}
+                        License: {resolvedTech.licensePlate}
                       </div>
                     </div>
                   </div>
                   <div className="text-right">
                     <div className="text-lg font-bold text-primary">
-                      {eta} min
+                      {resolvedEta} min
                     </div>
                     <div className="text-xs text-muted-foreground">ETA</div>
                   </div>
@@ -217,28 +388,28 @@ export default function TrackingPage() {
               </h3>
 
               <div className="space-y-6">
-                {trackingSteps.map((step, index) => (
+                {resolvedTrackingSteps.map((step, index) => (
                   <div key={step.id} className="flex gap-4">
                     <div className="flex flex-col items-center">
                       <div
                         className={cn(
                           "flex h-8 w-8 items-center justify-center rounded-full",
-                          index <= currentStep
+                          index <= resolvedStep
                             ? "bg-primary text-primary-foreground glow-blue"
                             : "bg-secondary text-muted-foreground"
                         )}
                       >
-                        {index < currentStep ? (
+                        {index < resolvedStep ? (
                           <CheckCircle className="h-4 w-4" />
                         ) : (
                           <span className="text-sm">{index + 1}</span>
                         )}
                       </div>
-                      {index < trackingSteps.length - 1 && (
+                      {index < resolvedTrackingSteps.length - 1 && (
                         <div
                           className={cn(
                             "my-1 h-8 w-0.5",
-                            index < currentStep ? "bg-primary" : "bg-secondary"
+                            index < resolvedStep ? "bg-primary" : "bg-secondary"
                           )}
                         />
                       )}
@@ -247,7 +418,7 @@ export default function TrackingPage() {
                       <div
                         className={cn(
                           "font-medium",
-                          index <= currentStep
+                          index <= resolvedStep
                             ? "text-foreground"
                             : "text-muted-foreground"
                         )}
@@ -259,7 +430,7 @@ export default function TrackingPage() {
                           {step.time}
                         </div>
                       )}
-                      {index === currentStep && !step.time && (
+                      {index === resolvedStep && !step.time && (
                         <div className="flex items-center gap-2 text-sm text-primary">
                           <span className="relative flex h-2 w-2">
                             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
@@ -288,7 +459,7 @@ export default function TrackingPage() {
                 <h3 className="font-semibold text-foreground">
                   Your Technician
                 </h3>
-                {technicianData.verified && (
+                {resolvedTech.verified && (
                   <div className="flex items-center gap-1 rounded-full bg-success/20 px-2 py-1 text-xs text-success">
                     <Shield className="h-3 w-3" />
                     Verified
@@ -308,20 +479,20 @@ export default function TrackingPage() {
 
                 <div className="flex-1">
                   <div className="text-lg font-semibold text-foreground">
-                    {technicianData.name}
+                    {resolvedTech.name}
                   </div>
                   <div className="text-sm text-muted-foreground">
-                    {technicianData.specialty}
+                    {resolvedTech.specialty}
                   </div>
                   <div className="mt-1 flex items-center gap-2">
                     <div className="flex items-center gap-1 text-warning">
                       <Star className="h-4 w-4 fill-warning" />
                       <span className="font-medium">
-                        {technicianData.rating}
+                        {resolvedTech.rating}
                       </span>
                     </div>
                     <span className="text-xs text-muted-foreground">
-                      ({technicianData.totalJobs} jobs)
+                      ({resolvedTech.totalJobs} jobs)
                     </span>
                   </div>
                 </div>
@@ -355,10 +526,10 @@ export default function TrackingPage() {
                   <Thermometer className="mt-0.5 h-5 w-5 text-accent" />
                   <div>
                     <div className="font-medium text-foreground">
-                      {jobDetails.service}
+                      {resolvedJob.service}
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      Job ID: {jobDetails.id}
+                      Job ID: {resolvedJob.id}
                     </div>
                   </div>
                 </div>
@@ -368,7 +539,7 @@ export default function TrackingPage() {
                   <div>
                     <div className="font-medium text-foreground">Location</div>
                     <div className="text-sm text-muted-foreground">
-                      {jobDetails.address}
+                      {resolvedJob.address}
                     </div>
                   </div>
                 </div>
@@ -380,7 +551,7 @@ export default function TrackingPage() {
                       Scheduled Time
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      {jobDetails.scheduledTime}
+                      {resolvedJob.scheduledTime}
                     </div>
                   </div>
                 </div>
@@ -391,7 +562,7 @@ export default function TrackingPage() {
                       Estimated Cost
                     </span>
                     <span className="text-lg font-semibold text-foreground">
-                      {jobDetails.estimatedCost}
+                      {resolvedJob.estimatedCost}
                     </span>
                   </div>
                   <p className="mt-2 text-xs text-muted-foreground">
@@ -413,7 +584,7 @@ export default function TrackingPage() {
                 <span className="font-medium text-foreground">Safety Tip:</span>
               </div>
               <p className="mt-2 text-sm text-muted-foreground">
-                All Schneider technicians carry ID badges. Feel free to ask for
+                All ServiceFlow technicians carry ID badges. Feel free to ask for
                 identification before allowing entry.
               </p>
             </motion.div>
@@ -423,3 +594,4 @@ export default function TrackingPage() {
     </div>
   )
 }
+

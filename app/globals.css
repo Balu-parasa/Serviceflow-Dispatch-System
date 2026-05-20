@@ -69,6 +69,12 @@
   --sidebar-accent-foreground: oklch(0.20 0.02 150);
   --sidebar-border: oklch(0.92 0.01 85);
   --sidebar-ring: oklch(0.35 0.08 160);
+
+  /* Glow color variables for landing page using Forest Green theme colors */
+  --glow-primary: oklch(0.35 0.08 160 / 0.25);
+  --glow-primary-subtle: oklch(0.35 0.08 160 / 0.1);
+  --glow-accent: oklch(0.55 0.06 150 / 0.25);
+  --glow-accent-subtle: oklch(0.55 0.06 150 / 0.1);
 }
 
 /* ============================================
@@ -112,6 +118,12 @@ html.dark,
   --sidebar-accent-foreground: oklch(0.95 0.01 85);
   --sidebar-border: oklch(0.28 0.015 150);
   --sidebar-ring: oklch(0.60 0.10 150);
+
+  /* Glow color variables for landing page in dark mode */
+  --glow-primary: oklch(0.60 0.10 150 / 0.3);
+  --glow-primary-subtle: oklch(0.60 0.10 150 / 0.1);
+  --glow-accent: oklch(0.55 0.08 150 / 0.3);
+  --glow-accent-subtle: oklch(0.55 0.08 150 / 0.1);
 }
 
 @theme inline {
@@ -168,6 +180,28 @@ html.dark,
   }
   body {
     @apply bg-background text-foreground antialiased;
+  }
+
+  /* Lenis smooth scroll base overrides */
+  html.lenis,
+  html.lenis body {
+    height: auto;
+  }
+
+  .lenis.lenis-smooth {
+    scroll-behavior: auto !important;
+  }
+
+  .lenis.lenis-smooth [data-lenis-prevent] {
+    overflow: clip;
+  }
+
+  .lenis.lenis-stopped {
+    overflow: hidden;
+  }
+
+  .lenis.lenis-smooth iframe {
+    pointer-events: none;
   }
 }
 
@@ -447,37 +481,63 @@ html.dark .grid-pattern,
     linear-gradient(90deg, oklch(0.60 0.10 150 / 0.05) 1px, transparent 1px);
 }
 
-/* Remove all glow effects */
-.glow-blue, .glow-cyan, .glow-purple, .glow-green {
-  box-shadow: none;
+/* ============================================
+   PREMIUM GLOWS AND SHADOWS (Theme-Aware)
+   ============================================ */
+.glow-blue {
+  box-shadow: 0 0 20px var(--glow-primary),
+    0 0 40px var(--glow-primary-subtle);
 }
 
-.text-glow-blue, .text-glow-cyan {
-  text-shadow: none;
+.glow-cyan {
+  box-shadow: 0 0 20px var(--glow-accent),
+    0 0 40px var(--glow-accent-subtle);
+}
+
+.glow-purple {
+  box-shadow: 0 0 20px oklch(0.62 0.21 295 / 0.2),
+    0 0 40px oklch(0.62 0.21 295 / 0.08);
+}
+
+.glow-green {
+  box-shadow: 0 0 20px oklch(0.50 0.12 150 / 0.25),
+    0 0 40px oklch(0.50 0.12 150 / 0.08);
+}
+
+.text-glow-blue {
+  text-shadow: 0 0 20px var(--glow-primary);
+}
+
+.text-glow-cyan {
+  text-shadow: 0 0 20px var(--glow-accent);
 }
 
 /* ============================================
-   GRADIENT MESH - Very subtle warm tones
+   GRADIENT MESH & RADIALS
    ============================================ */
 .gradient-mesh {
   background-image: 
-    radial-gradient(at 20% 30%, oklch(0.35 0.08 160 / 0.03) 0px, transparent 50%),
-    radial-gradient(at 80% 20%, oklch(0.55 0.06 150 / 0.03) 0px, transparent 50%),
-    radial-gradient(at 40% 80%, oklch(0.70 0.08 85 / 0.02) 0px, transparent 50%);
+    radial-gradient(at 40% 20%, oklch(0.35 0.08 160 / 0.08) 0px, transparent 50%),
+    radial-gradient(at 80% 0%, oklch(0.55 0.06 150 / 0.08) 0px, transparent 50%),
+    radial-gradient(at 0% 50%, oklch(0.50 0.12 150 / 0.06) 0px, transparent 50%),
+    radial-gradient(at 80% 50%, oklch(0.70 0.14 70 / 0.04) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, oklch(0.35 0.08 160 / 0.05) 0px, transparent 50%);
 }
 
 html.dark .gradient-mesh,
 .dark .gradient-mesh {
   background-image: 
-    radial-gradient(at 20% 30%, oklch(0.60 0.10 150 / 0.08) 0px, transparent 50%),
-    radial-gradient(at 80% 20%, oklch(0.55 0.08 150 / 0.06) 0px, transparent 50%),
-    radial-gradient(at 40% 80%, oklch(0.70 0.08 85 / 0.04) 0px, transparent 50%);
+    radial-gradient(at 40% 20%, oklch(0.60 0.10 150 / 0.12) 0px, transparent 50%),
+    radial-gradient(at 80% 0%, oklch(0.55 0.08 150 / 0.1) 0px, transparent 50%),
+    radial-gradient(at 0% 50%, oklch(0.60 0.12 150 / 0.08) 0px, transparent 50%),
+    radial-gradient(at 80% 50%, oklch(0.75 0.14 70 / 0.05) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, oklch(0.60 0.10 150 / 0.08) 0px, transparent 50%);
 }
 
 .gradient-radial {
   background: radial-gradient(
     ellipse at center,
-    oklch(0.35 0.08 160 / 0.04) 0%,
+    oklch(0.35 0.08 160 / 0.08) 0%,
     transparent 70%
   );
 }
@@ -486,7 +546,261 @@ html.dark .gradient-radial,
 .dark .gradient-radial {
   background: radial-gradient(
     ellipse at center,
-    oklch(0.60 0.10 150 / 0.08) 0%,
+    oklch(0.60 0.10 150 / 0.12) 0%,
     transparent 70%
   );
 }
+
+/* ============================================
+   GRID PATTERNS & TACTICAL LAYOUTS
+   ============================================ */
+.grid-pattern {
+  background-image: 
+    linear-gradient(oklch(0.35 0.08 160 / 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(0.35 0.08 160 / 0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+}
+
+html.dark .grid-pattern,
+.dark .grid-pattern {
+  background-image: 
+    linear-gradient(oklch(0.60 0.10 150 / 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(0.60 0.10 150 / 0.04) 1px, transparent 1px);
+}
+
+.tactical-grid {
+  background-image: 
+    linear-gradient(oklch(0.35 0.08 160 / 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(0.35 0.08 160 / 0.03) 1px, transparent 1px),
+    linear-gradient(oklch(0.35 0.08 160 / 0.01) 2px, transparent 2px),
+    linear-gradient(90deg, oklch(0.35 0.08 160 / 0.01) 2px, transparent 2px);
+  background-size: 100px 100px, 100px 100px, 20px 20px, 20px 20px;
+}
+
+html.dark .tactical-grid,
+.dark .tactical-grid {
+  background-image: 
+    linear-gradient(oklch(0.60 0.10 150 / 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(0.60 0.10 150 / 0.05) 1px, transparent 1px),
+    linear-gradient(oklch(0.60 0.10 150 / 0.02) 2px, transparent 2px),
+    linear-gradient(90deg, oklch(0.60 0.10 150 / 0.02) 2px, transparent 2px);
+}
+
+/* ============================================
+   PREMIUM KEYFRAME ANIMATIONS
+   ============================================ */
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.pulse-ring {
+  animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes live-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.live-indicator {
+  animation: live-pulse 2s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.floating {
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    oklch(0.35 0.08 160 / 0.1) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+html.dark .shimmer,
+.dark .shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    oklch(0.60 0.10 150 / 0.15) 50%,
+    transparent 100%
+  );
+}
+
+@keyframes scan {
+  0% {
+    top: 0;
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    top: 100%;
+    opacity: 0;
+  }
+}
+
+.scan-line::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--primary), transparent);
+  animation: scan 3s linear infinite;
+}
+
+@keyframes data-flow {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+.data-flow {
+  animation: data-flow 2s ease-in-out infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.cursor-blink {
+  animation: blink 1s step-end infinite;
+}
+
+.gradient-border {
+  position: relative;
+}
+
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, var(--primary), var(--accent), oklch(0.65 0.08 85));
+  -webkit-mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.animated-gradient-text {
+  background: linear-gradient(90deg, var(--primary), var(--accent), oklch(0.65 0.08 85), var(--primary));
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradient-shift 4s ease infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px var(--glow-primary);
+  }
+  50% {
+    box-shadow: 0 0 40px var(--glow-primary-subtle);
+  }
+}
+
+.pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes radar-sweep {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.radar-sweep {
+  animation: radar-sweep 4s linear infinite;
+}
+
+@keyframes status-online {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.2); opacity: 0.7; }
+}
+
+.status-online {
+  animation: status-online 2s ease-in-out infinite;
+}
+
+.landing-bg {
+  position: absolute;
+  inset: 0;
+  background-image: url('/vehicles-topdown.png');
+  background-size: cover;
+  background-position: center;
+  opacity: 0.25;
+  z-index: -1;
+  pointer-events: none;
+  transform: translateZ(-1px) scale(2);
+  background-attachment: fixed;
+  animation: float 12s ease-in-out infinite;
+}
+
+.noise-overlay {
+  position: relative;
+}
+
+.noise-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  opacity: 0.02;
+  pointer-events: none;
+}
+

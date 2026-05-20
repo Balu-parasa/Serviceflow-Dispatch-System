@@ -1,6 +1,6 @@
-"use client"
+﻿"use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import Link from "next/link"
 import { DayPicker } from "react-day-picker"
@@ -39,6 +39,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 import { ThemeToggleCompact } from "@/components/theme-toggle"
+import api from "@/lib/api"
 
 const steps = [
   { id: 1, title: "Service", icon: Wrench },
@@ -57,6 +58,7 @@ const services = [
     price: "From $89",
     color: "text-accent",
     bgColor: "bg-accent/10",
+    available: true,
   },
   {
     id: "plumbing",
@@ -66,6 +68,7 @@ const services = [
     price: "From $79",
     color: "text-primary",
     bgColor: "bg-primary/10",
+    available: true,
   },
   {
     id: "electrical",
@@ -75,6 +78,7 @@ const services = [
     price: "From $99",
     color: "text-warning",
     bgColor: "bg-warning/10",
+    available: true,
   },
   {
     id: "appliance",
@@ -84,6 +88,7 @@ const services = [
     price: "From $69",
     color: "text-success",
     bgColor: "bg-success/10",
+    available: false,
   },
   {
     id: "industrial",
@@ -93,6 +98,7 @@ const services = [
     price: "From $149",
     color: "text-chart-3",
     bgColor: "bg-chart-3/10",
+    available: true,
   },
   {
     id: "emergency",
@@ -102,6 +108,7 @@ const services = [
     price: "From $129",
     color: "text-destructive",
     bgColor: "bg-destructive/10",
+    available: true,
   },
 ]
 
@@ -167,6 +174,9 @@ interface BookingData {
 
 export default function BookingPage() {
   const [currentStep, setCurrentStep] = useState(1)
+  const [isAuthLoading, setIsAuthLoading] = useState(true)
+  const [dbServices, setDbServices] = useState<any[]>([])
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [bookingData, setBookingData] = useState<BookingData>({
     service: "",
     subService: "",
@@ -185,6 +195,59 @@ export default function BookingPage() {
     technicianId: null,
   })
 
+  useEffect(() => {
+    const fetchServices = async () => {
+      try {
+        const response = await api.get("/services")
+        if (response.data?.services) {
+          setDbServices(response.data.services)
+        }
+      } catch (err) {
+        console.error("Failed to fetch database services:", err)
+      }
+    }
+    fetchServices()
+  }, [])
+
+  const isSelectedServiceAvailable = useMemo(() => {
+    if (!bookingData.service) return false
+    const svc = services.find((s) => s.id === bookingData.service)
+    return svc ? svc.available !== false : false
+  }, [bookingData.service])
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const token = localStorage.getItem("token")
+        if (!token) {
+          window.location.href = "/login?redirect=/booking&message=first%20u%20have%20to%20login"
+          return
+        }
+        const response = await api.get("/auth/me")
+        if (response.data?.user) {
+          const user = response.data.user
+          setBookingData((prev) => ({
+            ...prev,
+            name: prev.name || user.name || "",
+            email: prev.email || user.email || "",
+            phone: prev.phone || user.phone || "",
+          }))
+          setIsAuthLoading(false)
+        } else {
+          localStorage.removeItem("token")
+          document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;"
+          window.location.href = "/login?redirect=/booking&message=first%20u%20have%20to%20login"
+        }
+      } catch (err) {
+        console.error("Auth check failed on booking page:", err)
+        localStorage.removeItem("token")
+        document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;"
+        window.location.href = "/login?redirect=/booking&message=first%20u%20have%20to%20login"
+      }
+    }
+    checkAuth()
+  }, [])
+
   const today = startOfToday()
   const disabledDays = { before: today }
 
@@ -200,6 +263,56 @@ export default function BookingPage() {
     if (currentStep > 1) setCurrentStep(currentStep - 1)
   }
 
+  const handleBack = () => {
+    if (currentStep === 1) {
+      window.location.href = "/customer"
+    } else {
+      prevStep()
+    }
+  }
+
+  const handleConfirmBooking = async () => {
+    setIsSubmitting(true)
+    try {
+      const dbService = dbServices.find((s) => s.slug === bookingData.service) || dbServices[0]
+      const serviceId = dbService ? dbService.id : 1
+
+      let formattedDate = null
+      if (bookingData.date) {
+        const year = bookingData.date.getFullYear()
+        const month = String(bookingData.date.getMonth() + 1).padStart(2, "0")
+        const day = String(bookingData.date.getDate()).padStart(2, "0")
+        formattedDate = `${year}-${month}-${day}`
+      }
+
+      const payload = {
+        service_id: serviceId,
+        technician_id: bookingData.technicianId || null,
+        is_emergency: bookingData.isEmergency ? 1 : 0,
+        property_type: bookingData.propertyType || "home",
+        address: bookingData.address || "123 Main Street",
+        city: bookingData.city || "San Francisco",
+        zip_code: bookingData.zipCode || "94102",
+        scheduled_date: formattedDate,
+        time_slot: bookingData.timeSlot || "morning",
+        specific_time: bookingData.specificTime || "9:00 AM",
+        notes: bookingData.notes || "",
+      }
+
+      const response = await api.post("/bookings", payload)
+      if (response.data?.data?.id) {
+        window.location.href = `/tracking?booking_id=${response.data.data.id}`
+      } else {
+        window.location.href = "/tracking"
+      }
+    } catch (err) {
+      console.error("Booking submission failed, falling back to mock tracking:", err)
+      window.location.href = "/tracking"
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   const selectedService = services.find((s) => s.id === bookingData.service)
   const selectedTimeSlot = timeSlots.find((t) => t.id === bookingData.timeSlot)
 
@@ -207,6 +320,17 @@ export default function BookingPage() {
     if (bookingData.isEmergency) return bookingData.technicianId !== null
     return bookingData.date !== undefined && bookingData.timeSlot !== "" && bookingData.specificTime !== ""
   }, [bookingData.isEmergency, bookingData.date, bookingData.timeSlot, bookingData.specificTime, bookingData.technicianId])
+
+  if (isAuthLoading) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-background text-foreground">
+        <div className="text-center">
+          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          <p className="mt-4 text-sm text-muted-foreground">Verifying secure booking session...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -218,7 +342,7 @@ export default function BookingPage() {
               <Zap className="h-5 w-5 text-primary-foreground" />
             </div>
             <span className="text-lg font-semibold text-foreground">
-              Schneider
+              ServiceFlow
             </span>
           </Link>
 
@@ -230,7 +354,7 @@ export default function BookingPage() {
               </div>
             )}
             <ThemeToggleCompact />
-            <Link href="/">
+            <Link href="/customer">
               <Button variant="ghost" size="sm">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back
@@ -372,13 +496,41 @@ export default function BookingPage() {
                         <span className="text-sm font-medium text-primary">
                           {service.price}
                         </span>
-                        {bookingData.service === service.id && (
-                          <Check className="h-5 w-5 text-primary" />
-                        )}
+                        <div className="flex items-center gap-2">
+                          <span className={cn(
+                            "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-semibold tracking-wide transition-all",
+                            service.available !== false
+                              ? "bg-success/15 text-success border border-success/20"
+                              : "bg-destructive/15 text-destructive border border-destructive/20"
+                          )}>
+                            <span className={cn(
+                              "h-1.5 w-1.5 rounded-full",
+                              service.available !== false ? "bg-success animate-pulse" : "bg-destructive"
+                            )} />
+                            {service.available !== false ? "Available" : "Unavailable"}
+                          </span>
+                          {bookingData.service === service.id && (
+                            <Check className="h-4 w-4 text-primary" />
+                          )}
+                        </div>
                       </div>
                     </motion.button>
                   ))}
                 </div>
+
+                {/* Unavailable Service Banner */}
+                {bookingData.service && services.find((s) => s.id === bookingData.service)?.available === false && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-8 rounded-xl border border-destructive/20 bg-destructive/10 p-5 text-center text-destructive flex flex-col sm:flex-row items-center justify-center gap-3 shadow-lg backdrop-blur-md"
+                  >
+                    <AlertTriangle className="h-6 w-6 shrink-0 animate-pulse text-destructive" />
+                    <div className="text-sm sm:text-base font-medium">
+                      <span className="font-bold">Service Currently Unavailable:</span> Unfortunately, {services.find((s) => s.id === bookingData.service)?.title} is fully booked or temporarily out of service. Please select another technician service to proceed.
+                    </div>
+                  </motion.div>
+                )}
               </div>
             )}
 
@@ -1012,40 +1164,51 @@ export default function BookingPage() {
           </motion.div>
         </AnimatePresence>
 
-        {/* Navigation Buttons */}
-        <div className="mt-12 flex items-center justify-between">
-          <Button
-            variant="outline"
-            onClick={prevStep}
-            disabled={currentStep === 1}
-            className="gap-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </Button>
-
-          {currentStep < 5 ? (
+          {/* Navigation Buttons */}
+          <div className="mt-12 flex items-center justify-between">
             <Button
-              onClick={nextStep}
-              disabled={
-                (currentStep === 1 && !bookingData.service) ||
-                (currentStep === 3 && !canProceedStep3)
-              }
-              className="gap-2 glow-blue"
+              variant="outline"
+              onClick={handleBack}
+              className="gap-2"
             >
-              Continue
-              <ArrowRight className="h-4 w-4" />
+              <ArrowLeft className="h-4 w-4" />
+              Back
             </Button>
-          ) : (
-            <Link href="/tracking">
-              <Button className="gap-2 glow-blue">
-                Confirm Booking
-                <ChevronRight className="h-4 w-4" />
+
+            {currentStep < 5 ? (
+              <Button
+                onClick={nextStep}
+                disabled={
+                  (currentStep === 1 && (!bookingData.service || !isSelectedServiceAvailable)) ||
+                  (currentStep === 3 && !canProceedStep3)
+                }
+                className="gap-2 glow-blue"
+              >
+                Continue
+                <ArrowRight className="h-4 w-4" />
               </Button>
-            </Link>
-          )}
-        </div>
+            ) : (
+              <Button
+                onClick={handleConfirmBooking}
+                disabled={isSubmitting}
+                className="gap-2 glow-blue min-w-[150px]"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    Confirm Booking
+                    <ChevronRight className="h-4 w-4" />
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
       </main>
     </div>
   )
 }
+

@@ -47,6 +47,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { ThemeToggleCompact } from "@/components/theme-toggle"
+import api from "@/lib/api"
 
 // Realtime Data Simulation
 const generateRealtimeData = () => ({
@@ -116,18 +117,82 @@ export default function AdminDashboard() {
   const [selectedTech, setSelectedTech] = useState<number | null>(null)
   const [currentTime, setCurrentTime] = useState(new Date())
   const [showSearch, setShowSearch] = useState(false)
+  const [isAuthLoading, setIsAuthLoading] = useState(true)
+  const [user, setUser] = useState<any>(null)
 
   useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const token = localStorage.getItem("token")
+        if (!token) {
+          window.location.href = "/login?redirect=/admin&message=first%20u%20have%20to%20login"
+          return
+        }
+        const response = await api.get("/auth/me")
+        if (response.data?.user) {
+          const currentUser = response.data.user
+          if (currentUser.role !== 'admin') {
+            if (currentUser.role === 'technician') {
+              window.location.href = '/technician'
+            } else {
+              window.location.href = '/customer'
+            }
+            return
+          }
+          setUser(currentUser)
+          setIsAuthLoading(false)
+        } else {
+          localStorage.removeItem("token")
+          document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;"
+          window.location.href = "/login?redirect=/admin&message=first%20u%20have%20to%20login"
+        }
+      } catch (err) {
+        console.error("Auth check failed on admin page:", err)
+        localStorage.removeItem("token")
+        document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;"
+        window.location.href = "/login?redirect=/admin&message=first%20u%20have%20to%20login"
+      }
+    }
+    checkAuth()
+  }, [])
+
+  useEffect(() => {
+    if (isAuthLoading) return
     const interval = setInterval(() => {
       setStats(generateRealtimeData())
       setCurrentTime(new Date())
     }, 3000)
     return () => clearInterval(interval)
-  }, [])
+  }, [isAuthLoading])
+
+  const handleLogout = async () => {
+    try {
+      await api.post("/auth/logout")
+      localStorage.removeItem("token")
+      document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;"
+      window.location.href = "/login"
+    } catch (error) {
+      console.error("Logout failed", error)
+      localStorage.removeItem("token")
+      document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;"
+      window.location.href = "/login"
+    }
+  }
 
   const formatTime = useCallback((date: Date) => {
     return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
   }, [])
+
+  if (isAuthLoading) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-background text-foreground">
+        <div className="text-center">
+          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent animate-glow" />
+          <p className="mt-4 text-sm text-muted-foreground animate-pulse">Syncing admin command center...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="h-screen bg-background text-foreground overflow-hidden flex">
@@ -160,7 +225,11 @@ export default function AdminDashboard() {
           ))}
         </nav>
 
-        <button className="w-10 h-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary/50 flex items-center justify-center transition-all">
+        <button 
+          onClick={handleLogout}
+          className="w-10 h-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary/50 flex items-center justify-center transition-all"
+          title="Log Out"
+        >
           <LogOut className="w-[18px] h-[18px]" />
         </button>
       </aside>
