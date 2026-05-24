@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useState, useEffect, useMemo } from "react"
 import { motion } from "framer-motion"
@@ -22,6 +22,8 @@ import {
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import api from "@/lib/api"
+import echoInstance from "@/lib/echo"
+import { toast, Toaster } from "sonner"
 
 const technicianData = {
   name: "John Mitchell",
@@ -115,6 +117,39 @@ export default function TrackingPage() {
       fetchBookingTracking()
     }
   }, [isAuthLoading])
+
+  useEffect(() => {
+    if (!booking?.id || !echoInstance) return
+
+    const channel = echoInstance.private(`user.${booking.customer_id}`)
+      .listen('.booking.status.updated', (event: any) => {
+        console.log("Realtime booking update received on tracking:", event)
+        if (event.booking && event.booking.id === booking.id) {
+          setBooking(event.booking)
+          toast.success("Status Updated", {
+            description: `Booking status changed to ${event.booking.status}`
+          })
+        }
+      })
+      .listen('.technician.location.updated', (event: any) => {
+        console.log("Realtime location update received:", event)
+        if (event.booking_id === booking.id) {
+          setTechLocation({
+            latitude: event.latitude,
+            longitude: event.longitude,
+            eta_minutes: event.eta_minutes
+          })
+          if (event.eta_minutes !== null) {
+            setEta(event.eta_minutes)
+          }
+        }
+      })
+
+    return () => {
+      channel.stopListening('.booking.status.updated')
+      channel.stopListening('.technician.location.updated')
+    }
+  }, [booking?.id, booking?.customer_id])
 
   const resolvedTech = useMemo(() => {
     if (booking?.technician) {
@@ -236,6 +271,7 @@ export default function TrackingPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Toaster richColors position="top-right" />
       {/* Header */}
       <header className="glass fixed left-0 right-0 top-0 z-50">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
