@@ -60,6 +60,8 @@ class TechnicianController extends Controller
         $profile = $request->user()->technicianProfile;
         $profile->update(['status' => $request->status]);
 
+        \App\Events\TechnicianStatusUpdated::dispatch($request->user()->fresh('technicianProfile'));
+
         return response()->json([
             'profile' => $profile->fresh(),
         ]);
