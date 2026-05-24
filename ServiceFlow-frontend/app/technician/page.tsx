@@ -257,6 +257,7 @@ export default function TechnicianDashboard() {
           return
         }
         setUser(currentUser)
+        setIsOnline(currentUser.technician_profile?.status !== 'offline')
       } else {
         // Not authenticated
         localStorage.removeItem('token')
@@ -514,7 +515,18 @@ export default function TechnicianDashboard() {
           <div className="flex items-center gap-2">
             {/* Online Toggle */}
             <button
-              onClick={() => setIsOnline(!isOnline)}
+              onClick={async () => {
+                const newStatus = !isOnline;
+                setIsOnline(newStatus);
+                try {
+                  await api.patch('/technician/status', { status: newStatus ? 'online' : 'offline' });
+                  toast.success(`You are now ${newStatus ? 'Online' : 'Offline'}`);
+                } catch (err) {
+                  console.error("Failed to update status on backend", err);
+                  setIsOnline(!newStatus);
+                  toast.error("Failed to update status");
+                }
+              }}
               className={cn(
                 "flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-all",
                 isOnline

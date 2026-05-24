@@ -40,6 +40,7 @@ import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 import { ThemeToggleCompact } from "@/components/theme-toggle"
 import api from "@/lib/api"
+import echoInstance from "@/lib/echo"
 
 const steps = [
   { id: 1, title: "Service", icon: Wrench },
@@ -88,7 +89,7 @@ const services = [
     price: "From $69",
     color: "text-success",
     bgColor: "bg-success/10",
-    available: false,
+    available: true,
   },
   {
     id: "industrial",
@@ -222,6 +223,18 @@ export default function BookingPage() {
       }
     }
     fetchTechnicians()
+
+    if (echoInstance) {
+      const channel = echoInstance.channel('technicians')
+        .listen('.technician.status.updated', () => {
+          console.log("Technician status updated, refreshing available services...")
+          fetchTechnicians()
+        })
+
+      return () => {
+        channel.stopListening('.technician.status.updated')
+      }
+    }
   }, [])
 
   const isTechnicianMatch = (techSpecialty: string, serviceSlug: string): boolean => {
