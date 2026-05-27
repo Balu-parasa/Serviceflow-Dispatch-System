@@ -378,11 +378,12 @@ export default function BookingPage() {
       if (response.data?.data?.id) {
         router.push(`/checkout?plan=Service+Booking&price=${encodeURIComponent(formatCurrency(estimatedTotal))}&booking_id=${response.data.data.id}`)
       } else {
-        router.push(`/checkout?plan=Service+Booking&price=${encodeURIComponent(formatCurrency(estimatedTotal))}`)
+        throw new Error("Invalid response from server");
       }
     } catch (err: any) {
-      console.error("Booking submission failed, falling back to checkout:", err)
-      router.push(`/checkout?plan=Service+Booking&price=${encodeURIComponent(formatCurrency(estimatedTotal))}`)
+      console.error("Booking submission failed:", err)
+      const errorMessage = err.response?.data?.message || "Failed to submit booking. Please ensure you are logged in and try again."
+      alert(errorMessage)
     } finally {
       setIsSubmitting(false)
     }
