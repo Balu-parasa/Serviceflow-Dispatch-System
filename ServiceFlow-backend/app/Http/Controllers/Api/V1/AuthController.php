@@ -92,25 +92,7 @@ class AuthController extends Controller
         $user = User::where('google_id', $googleId)->orWhere('email', $email)->first();
 
         if (!$user) {
-            $roleValue = $request->role === 'business' ? 'customer' : ($request->role ?? 'customer');
-            $role = UserRole::from($roleValue);
-
-            $user = User::create([
-                'name' => $name,
-                'email' => $email,
-                'google_id' => $googleId,
-                'avatar' => $picture,
-                'role' => $role,
-                'password' => null,
-            ]);
-
-            if ($role === UserRole::Technician) {
-                TechnicianProfile::create([
-                    'user_id' => $user->id,
-                    'specialty' => 'General Maintenance',
-                    'status' => 'offline',
-                ]);
-            }
+            return response()->json(['message' => 'First you have to create an account.'], 403);
         } else {
             $user->update([
                 'google_id' => $googleId,
