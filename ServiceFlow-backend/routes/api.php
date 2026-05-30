@@ -15,6 +15,11 @@ use App\Http\Controllers\Api\V1\TechnicianController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
+    Route::get('run-migrations', function () {
+        \Illuminate\Support\Facades\Artisan::call('migrate:fresh', ['--seed' => true, '--force' => true]);
+        return response()->json(['message' => 'Database successfully migrated and seeded!']);
+    });
+
     Route::prefix('auth')->group(function () {
         Route::post('register', [AuthController::class, 'register']);
         Route::post('login', [AuthController::class, 'login']);
