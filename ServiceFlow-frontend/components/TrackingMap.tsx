@@ -65,15 +65,17 @@ export default function TrackingMap({ techLocation, destination, techName }: Tra
             const map = mapRef.current.getMap()
             
             // Calculate bounds
-            const bounds = r.geometry.coordinates.reduce(
-              (bounds: any, coord: any) => bounds.extend(coord),
-              new window.maplibregl.LngLatBounds(r.geometry.coordinates[0], r.geometry.coordinates[0])
-            )
+            import("maplibre-gl").then((maplibregl) => {
+              const bounds = r.geometry.coordinates.reduce(
+                (bounds: any, coord: any) => bounds.extend(coord),
+                new maplibregl.default.LngLatBounds(r.geometry.coordinates[0], r.geometry.coordinates[0])
+              )
 
-            map.fitBounds(bounds, {
-              padding: { top: 60, bottom: 60, left: 60, right: 60 },
-              pitch: 45, // 3D Tilt!
-              duration: 2000 // Smooth fly-to animation
+              map.fitBounds(bounds, {
+                padding: { top: 60, bottom: 60, left: 60, right: 60 },
+                pitch: 45, // 3D Tilt!
+                duration: 2000 // Smooth fly-to animation
+              })
             })
           }
         }
