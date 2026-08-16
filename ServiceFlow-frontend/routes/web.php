@@ -66,5 +66,10 @@ Route::middleware('auth')->group(function () {
         return view('technician');
     })->name('technician.dashboard');
 
-    
+    Route::get('/admin', function () {
+        if (!Auth::user()->isAdmin()) {
+            return redirect(Auth::user()->role->dashboardPath());
+        }
+        return view('admin');
+    })->name('admin.dashboard');
 });
