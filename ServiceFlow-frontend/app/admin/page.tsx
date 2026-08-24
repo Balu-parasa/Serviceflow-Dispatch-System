@@ -159,24 +159,7 @@ export default function AdminDashboard() {
     checkAuth()
   }, [])
 
-  useEffect(() => {
-    if (isAuthLoading) return
-    const interval = setInterval(() => {
-      setStats(generateRealtimeData())
-      setCurrentTime(new Date())
-    }, 3000)
-    return () => clearInterval(interval)
-  }, [isAuthLoading])
-
-  const handleLogout = () => {
-    api.post("/auth/logout").catch((error) => {
-      console.error("Background logout failed", error)
-    })
-    localStorage.removeItem("token")
-    document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;"
-    window.location.href = "/login"
-  }
-
+  
   const formatTime = useCallback((date: Date) => {
     return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
   }, [])
