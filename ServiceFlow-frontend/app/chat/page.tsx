@@ -249,7 +249,18 @@ function ChatContent() {
   if (!bookingId) {
     return (
       <div className="flex h-screen w-screen flex-col items-center justify-center bg-background text-foreground p-6">
-       
+        <div className="text-center space-y-4 max-w-md glass-card p-8 rounded-2xl border border-border">
+          <AlertTriangle className="mx-auto h-12 w-12 text-warning animate-bounce" />
+          <h2 className="text-xl font-bold">Invalid Chat Session</h2>
+          <p className="text-sm text-muted-foreground">
+            No booking reference was provided. Please return to your control center to open a valid secure message terminal.
+          </p>
+          <Link href="/">
+            <button className="h-10 px-6 mt-4 text-xs font-semibold rounded-lg bg-primary hover:bg-primary/90 transition-all text-primary-foreground glow-blue">
+              Back to Safety
+            </button>
+          </Link>
+        </div>
       </div>
     )
   }
