@@ -191,15 +191,6 @@ During this project I gained hands-on experience with:
 
 ---
 
-## 👨‍💻 Author
-
-**Parasa Balu Lakshman Pavan**
-
-📧 Email: baluparasa3@gmail.com
-
-💼 LinkedIn: https://linkedin.com/in/balu-parasa
-
-💻 GitHub: https://github.com/Balu-parasa
 
 ---
 
